@@ -371,12 +371,7 @@ export async function getTicketAttachments(
 }
 
 export function getAttachmentUrl(attachment: TicketAttachment): string {
-  if (/^https?:\/\//i.test(attachment.url)) {
-    return attachment.url;
-  }
-
-  const staticBaseUrl = API_BASE_URL.replace(/\/api\/?$/i, "");
-  return `${staticBaseUrl}${attachment.url}`;
+  return `${API_BASE_URL}/Ticket/attachments/${attachment.id}/file`;
 }
 
 /**
