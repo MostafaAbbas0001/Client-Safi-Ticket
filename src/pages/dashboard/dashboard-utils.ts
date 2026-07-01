@@ -16,7 +16,9 @@ export function getStatusBadgeClass(status: string) {
   if (normalized === "initiated") return "border-slate-200 bg-slate-50 text-slate-700";
   if (normalized === "in progress") return "border-sky-200 bg-sky-50 text-sky-700";
   if (normalized === "closed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (normalized === "cancelled") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
 
   return "border-border bg-muted text-muted-foreground";
 }
@@ -27,7 +29,9 @@ export function getStatusAccentClass(status: string) {
   if (normalized === "initiated") return "border-t-slate-500 [&_.status-progress]:bg-slate-500";
   if (normalized === "in progress") return "border-t-sky-500 [&_.status-progress]:bg-sky-500";
   if (normalized === "closed") return "border-t-emerald-500 [&_.status-progress]:bg-emerald-500";
-  if (normalized === "cancelled") return "border-t-rose-500 [&_.status-progress]:bg-rose-500";
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "border-t-red-500 [&_.status-progress]:bg-red-500";
+  }
 
   return "border-t-primary [&_.status-progress]:bg-primary";
 }
