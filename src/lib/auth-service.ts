@@ -20,14 +20,34 @@ interface TokenResponse {
 const AUTH_SESSION_KEY = "safi.auth.session";
 
 interface JwtPayload {
-  nameid: string;
-  unique_name: string;
-  email: string;
-  role: string;
+  [claim: string]: unknown;
+  nameid?: string;
+  unique_name?: string;
+  email?: string;
+  role?: string;
 }
 
-function normalizeRole(role: string): AuthSession["role"] {
-  return role.trim().toLowerCase() === "admin" ? "admin" : "officer";
+const claimTypes = {
+  nameIdentifier: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+  name: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+  email: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+  role: "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
+};
+
+function getClaim(payload: JwtPayload, ...keys: string[]) {
+  for (const key of keys) {
+    const value = payload[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeRole(role?: string): AuthSession["role"] {
+  return role?.trim().toLowerCase() === "admin" ? "admin" : "officer";
 }
 
 function decodeBase64Url(value: string) {
@@ -51,12 +71,21 @@ export const authService = {
   async login(request: LoginRequest) {
     const response = await apiClient.post<TokenResponse>("/api/auth/login", request);
     const decodedToken = decodeJwtPayload(response.token);
+    const userId = getClaim(decodedToken, "nameid", claimTypes.nameIdentifier);
+    const name = getClaim(decodedToken, "unique_name", claimTypes.name);
+    const email = getClaim(decodedToken, "email", claimTypes.email);
+    const role = getClaim(decodedToken, "role", claimTypes.role);
+
+    if (!userId || !name || !email) {
+      throw new Error("Authentication token is missing required user claims.");
+    }
+
     const session: AuthSession = {
       token: response.token,
-      userId: Number(decodedToken.nameid),
-      name: decodedToken.unique_name,
-      email: decodedToken.email,
-      role: normalizeRole(decodedToken.role),
+      userId: Number(userId),
+      name,
+      email,
+      role: normalizeRole(role),
     };
 
     localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
