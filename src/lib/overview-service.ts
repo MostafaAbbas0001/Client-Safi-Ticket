@@ -20,9 +20,15 @@ export interface TicketOverviewQuery {
 }
 
 export const overviewService = {
-  getTicketOverview(query: TicketOverviewQuery) {
-    return apiClient.get<TicketOverview>("/api/overview/tickets", {
+  async getTicketOverview(query: TicketOverviewQuery) {
+    const overview = await apiClient.get<TicketOverview>("/api/overview/tickets", {
       query,
     });
+
+    return {
+      ...overview,
+      totalCount: overview.totalCount ?? 0,
+      statuses: Array.isArray(overview.statuses) ? overview.statuses : [],
+    };
   },
 };

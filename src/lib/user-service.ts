@@ -10,8 +10,10 @@ export interface CreateUserRequest {
 }
 
 export const userService = {
-  getUsers() {
-    return apiClient.get<UserLookupItem[]>("/api/user");
+  async getUsers() {
+    const users = await apiClient.get<UserLookupItem[]>("/api/user");
+
+    return Array.isArray(users) ? users : [];
   },
 
   createUser(request: CreateUserRequest) {

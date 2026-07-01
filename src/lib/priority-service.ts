@@ -2,7 +2,9 @@ import { apiClient } from "./api-client";
 import type { LookupItem } from "@/pages/dashboard/dashboard-data";
 
 export const priorityService = {
-  getPriorities() {
-    return apiClient.get<LookupItem[]>("/api/priority");
+  async getPriorities() {
+    const priorities = await apiClient.get<LookupItem[]>("/api/priority");
+
+    return Array.isArray(priorities) ? priorities : [];
   },
 };

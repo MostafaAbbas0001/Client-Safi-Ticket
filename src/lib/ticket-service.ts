@@ -66,8 +66,16 @@ export interface CreateTicketReplyRequest {
 }
 
 export const ticketService = {
-  getTickets(query: TicketQuery) {
-    return apiClient.get<TicketSearchResponse>("/api/ticket", { query });
+  async getTickets(query: TicketQuery) {
+    const response = await apiClient.get<TicketSearchResponse>("/api/ticket", { query });
+
+    return {
+      ...response,
+      items: Array.isArray(response.items) ? response.items : [],
+      page: response.page ?? query.page ?? 1,
+      pageSize: response.pageSize ?? 50,
+      totalCount: response.totalCount ?? 0,
+    };
   },
 
   getTicket(ticketId: number) {
@@ -102,16 +110,22 @@ export const ticketService = {
     return apiClient.delete<string>(`/api/ticket/${ticketId}`);
   },
 
-  getComments(ticketId: number) {
-    return apiClient.get<TicketComment[]>(`/api/ticket/${ticketId}/comments`);
+  async getComments(ticketId: number) {
+    const comments = await apiClient.get<TicketComment[]>(`/api/ticket/${ticketId}/comments`);
+
+    return Array.isArray(comments) ? comments : [];
   },
 
   addComment(ticketId: number, request: CreateTicketCommentRequest) {
     return apiClient.post<TicketComment>(`/api/ticket/${ticketId}/comments`, request);
   },
 
-  getAttachments(ticketId: number) {
-    return apiClient.get<TicketAttachment[]>(`/api/ticket/${ticketId}/attachments`);
+  async getAttachments(ticketId: number) {
+    const attachments = await apiClient.get<TicketAttachment[]>(
+      `/api/ticket/${ticketId}/attachments`,
+    );
+
+    return Array.isArray(attachments) ? attachments : [];
   },
 
   replyToRequester(ticketId: number, request: CreateTicketReplyRequest) {
