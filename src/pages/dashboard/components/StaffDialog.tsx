@@ -34,6 +34,11 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
     event.preventDefault();
     setError(null);
 
+    if (roles.length === 0) {
+      setError("Roles are not available yet.");
+      return;
+    }
+
     if (!name.trim() || !email.trim() || !phoneNumber.trim() || !password || !roleId) {
       setError("All staff fields are required.");
       return;
@@ -109,9 +114,10 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
               value={roleId}
               onChange={(event) => setRoleId(event.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring"
+              disabled={roles.length === 0}
             >
               <option value="" disabled>
-                Select role
+                {roles.length === 0 ? "No roles available" : "Select role"}
               </option>
               {roles.map((role) => (
                 <option key={role.id} value={role.id}>

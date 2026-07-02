@@ -1,5 +1,4 @@
 import { getStatusAccentClass } from "../dashboard-utils";
-import type { OverviewTimeFrame } from "@/lib/overview-service";
 
 export interface StatusFilterItem {
   id: number;
@@ -10,22 +9,19 @@ export interface StatusFilterItem {
 interface StatusFilterSectionProps {
   statusFilters: StatusFilterItem[];
   totalCount: number;
-  timeFrame: OverviewTimeFrame;
-  onTimeFrameChange: (value: OverviewTimeFrame) => void;
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
 }
-
-const timeFrameOptions: Array<{ value: OverviewTimeFrame; label: string }> = [
-  { value: "all", label: "All time" },
-  { value: "today", label: "Today" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "30d", label: "Last 30 days" },
-];
 
 export function StatusFilterSection({
   statusFilters,
   totalCount,
-  timeFrame,
-  onTimeFrameChange,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
 }: StatusFilterSectionProps) {
   return (
     <section className="rounded-lg border bg-card/95 p-4 shadow-[0_16px_45px_rgba(15,15,15,0.05)]">
@@ -38,17 +34,21 @@ export function StatusFilterSection({
           <p className="text-xs text-muted-foreground">
             {totalCount} {totalCount === 1 ? "ticket" : "tickets"} in selected range
           </p>
-          <select
-            value={timeFrame}
-            onChange={(event) => onTimeFrameChange(event.target.value as OverviewTimeFrame)}
-            className="h-9 rounded-md border border-input bg-background/80 px-3 py-1 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring"
-          >
-            {timeFrameOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(event) => onStartDateChange(event.target.value)}
+              className="h-9 rounded-md border border-input bg-background/80 px-3 py-1 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(event) => onEndDateChange(event.target.value)}
+              className="h-9 rounded-md border border-input bg-background/80 px-3 py-1 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
         </div>
       </div>
 

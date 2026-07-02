@@ -26,8 +26,6 @@ export interface Ticket {
   requesterEmail?: string | null;
   statusId?: number | null;
   status: string;
-  priorityId?: number | null;
-  priority?: string | null;
   userId?: number | null;
   assignee?: string | null;
   createdAt?: string;
@@ -54,20 +52,9 @@ export interface TicketAttachment {
   contentType: string;
   sizeBytes: number;
   url: string;
+  downloadUrl?: string;
   uploadedAt: string;
 }
-
-export const staticStatuses: LookupItem[] = [
-  { id: 1, name: "Initiated" },
-  { id: 2, name: "In Progress" },
-  { id: 3, name: "Closed" },
-  { id: 4, name: "Cancelled" },
-];
-
-export const staticRoles: LookupItem[] = [
-  { id: 1, name: "Admin" },
-  { id: 2, name: "Officer" },
-];
 
 export const staticUsers: UserLookupItem[] = [];
 

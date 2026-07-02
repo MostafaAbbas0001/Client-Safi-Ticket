@@ -1,29 +1,23 @@
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import type { LookupItem, UserLookupItem } from "../dashboard-data";
-import { ALL_PRIORITIES, ALL_USERS } from "../dashboard-utils";
+import type { UserLookupItem } from "../dashboard-data";
+import { ALL_USERS } from "../dashboard-utils";
 
 interface TicketToolbarProps {
   search: string;
-  priorityFilter: string;
   userFilter: string;
   showUserFilter: boolean;
-  priorities: LookupItem[];
   users: UserLookupItem[];
   onSearchChange: (value: string) => void;
-  onPriorityChange: (value: string) => void;
   onUserChange: (value: string) => void;
 }
 
 export function TicketToolbar({
   search,
-  priorityFilter,
   userFilter,
   showUserFilter,
-  priorities,
   users,
   onSearchChange,
-  onPriorityChange,
   onUserChange,
 }: TicketToolbarProps) {
   return (
@@ -44,18 +38,6 @@ export function TicketToolbar({
             className="h-11 bg-background/80 pl-9"
           />
         </div>
-        <select
-          value={priorityFilter}
-          onChange={(event) => onPriorityChange(event.target.value)}
-          className="h-11 rounded-md border border-input bg-background/80 px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring sm:w-52"
-        >
-          <option value={ALL_PRIORITIES}>All priorities</option>
-          {priorities.map((priority) => (
-            <option key={priority.id} value={priority.id}>
-              {priority.name}
-            </option>
-          ))}
-        </select>
         {showUserFilter && (
           <select
             value={userFilter}

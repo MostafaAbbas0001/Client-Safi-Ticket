@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import type { LookupItem, Ticket, UserLookupItem } from "./dashboard-data";
 
-export const ALL_PRIORITIES = "all-priorities";
 export const ALL_USERS = "all-users";
 export const PAGE_SIZE = 50;
-export const STAFF_EDITABLE_STATUSES = ["Initiated", "In Progress", "Closed", "Cancelled"];
 
 function normalizeStatusName(status: string) {
   return status.toLowerCase().replace(/\s+/g, " ").trim();
@@ -34,17 +32,6 @@ export function getStatusAccentClass(status: string) {
   }
 
   return "border-t-primary [&_.status-progress]:bg-primary";
-}
-
-export function getPriorityBadgeClass(priority: string) {
-  const normalized = priority.toLowerCase();
-
-  if (normalized === "critical") return "border-red-200 bg-red-50 text-red-700";
-  if (normalized === "high") return "border-orange-200 bg-orange-50 text-orange-700";
-  if (normalized === "medium") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (normalized === "low") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-
-  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 export function formatDate(value?: string) {
@@ -79,13 +66,11 @@ function getLookupName(items: LookupItem[] | undefined, id: number | null | unde
 export function mapTicketLookups(
   ticket: Ticket,
   statuses: LookupItem[] | undefined,
-  priorities: LookupItem[] | undefined,
   users: UserLookupItem[] | undefined,
 ) {
   return {
     ...ticket,
     status: getLookupName(statuses, ticket.statusId) ?? ticket.status,
-    priority: getLookupName(priorities, ticket.priorityId) ?? ticket.priority,
     assignee: users?.find((user) => user.id === ticket.userId)?.name ?? ticket.assignee,
   };
 }

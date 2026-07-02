@@ -24,6 +24,7 @@ if (!configuredApiBaseUrl) {
 }
 
 const apiBaseUrl = configuredApiBaseUrl.replace(/\/$/, "");
+const authSessionKey = "safi.auth.session";
 
 function buildUrl(path: string, query?: Record<string, QueryValue>) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -55,11 +56,13 @@ async function readResponse(response: Response) {
 async function request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { body, headers, query, ...requestOptions } = options;
   const hasJsonBody = body !== undefined && !(body instanceof FormData);
+  const authToken = getAuthToken();
 
   const response = await fetch(buildUrl(path, query), {
     ...requestOptions,
     body: hasJsonBody ? JSON.stringify(body) : body,
     headers: {
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
       ...headers,
     },
@@ -77,6 +80,32 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   }
 
   return payload as T;
+}
+
+function getAuthToken() {
+  const storedSession = localStorage.getItem(authSessionKey);
+
+  if (!storedSession) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(storedSession) as { token?: unknown };
+    return typeof session.token === "string" && session.token.trim() ? session.token : null;
+  } catch {
+    localStorage.removeItem(authSessionKey);
+    return null;
+  }
+}
+
+export function getApiUrl(path: string, query?: Record<string, QueryValue>) {
+  return buildUrl(path, query);
+}
+
+export function getAuthorizationHeaders() {
+  const authToken = getAuthToken();
+
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
 }
 
 export const apiClient = {

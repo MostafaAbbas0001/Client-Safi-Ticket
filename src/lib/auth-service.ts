@@ -1,4 +1,5 @@
 import { apiClient } from "./api-client";
+import { clearAllClientCaches } from "./client-cache";
 
 export interface LoginRequest {
   email: string;
@@ -69,6 +70,8 @@ function decodeJwtPayload(token: string) {
 
 export const authService = {
   async login(request: LoginRequest) {
+    clearAllClientCaches();
+
     const response = await apiClient.post<TokenResponse>("/api/auth/login", request);
     const decodedToken = decodeJwtPayload(response.token);
     const userId = getClaim(decodedToken, "nameid", claimTypes.nameIdentifier);
@@ -121,6 +124,7 @@ export const authService = {
   },
 
   logout() {
+    clearAllClientCaches();
     localStorage.removeItem(AUTH_SESSION_KEY);
   },
 };

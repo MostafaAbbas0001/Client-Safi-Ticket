@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import type { Ticket, User } from "../dashboard-data";
 import { formatDate, getBodyPreview } from "../dashboard-utils";
-import { PriorityBadge, StatusBadge } from "./TicketBadges";
+import { StatusBadge } from "./TicketBadges";
 
 interface TicketTableSectionProps {
   tickets: Ticket[];
@@ -42,7 +42,6 @@ export function TicketTableSection({
             <col className="w-80" />
             <col className="w-40" />
             <col className="w-36" />
-            <col className="w-36" />
             <col className="w-40" />
             <col className="w-32" />
             <col className="w-28" />
@@ -54,7 +53,6 @@ export function TicketTableSection({
               <TableHead>Body preview</TableHead>
               <TableHead>Requester</TableHead>
               <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-center">Priority</TableHead>
               <TableHead>Assignee</TableHead>
               <TableHead className="text-center">Created</TableHead>
               <TableHead className="text-center">Actions</TableHead>
@@ -63,13 +61,13 @@ export function TicketTableSection({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-28 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
                   Loading tickets...
                 </TableCell>
               </TableRow>
             ) : tickets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-28 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
                   No tickets match these filters.
                 </TableCell>
               </TableRow>
@@ -94,9 +92,6 @@ export function TicketTableSection({
                   </TableCell>
                   <TableCell className="text-center">
                     <StatusBadge status={ticket.status} />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <PriorityBadge priority={ticket.priority ?? "N/A"} />
                   </TableCell>
                   <TableCell className="text-sm">
                     <span className="line-clamp-2 break-words">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { NewTicketDialog } from "./components/NewTicketDialog";
@@ -8,12 +8,9 @@ import { TicketDrawer } from "./components/TicketDrawer";
 import { TicketTableSection } from "./components/TicketTableSection";
 import { TicketToolbar } from "./components/TicketToolbar";
 import type { AuthSession } from "@/lib/auth-service";
-import {
-  overviewService,
-  type OverviewTimeFrame,
-  type TicketOverview,
-} from "@/lib/overview-service";
-import { priorityService } from "@/lib/priority-service";
+import { overviewService, type TicketOverview } from "@/lib/overview-service";
+import { roleService } from "@/lib/role-service";
+import { statusService } from "@/lib/status-service";
 import {
   ticketService,
   type CreateTicketWithAttachmentsRequest,
@@ -23,8 +20,6 @@ import { userService, type CreateUserRequest } from "@/lib/user-service";
 import {
   staticAttachments,
   staticComments,
-  staticRoles,
-  staticStatuses,
   staticTickets,
   staticUsers,
   type LookupItem,
@@ -33,11 +28,36 @@ import {
   type TicketComment,
   type UserLookupItem,
 } from "./dashboard-data";
-import { ALL_PRIORITIES, ALL_USERS, useDebouncedValue } from "./dashboard-utils";
+import { ALL_USERS, useDebouncedValue } from "./dashboard-utils";
 
 interface DashboardPageProps {
   session: AuthSession;
   onLogout: () => void;
+}
+
+function formatDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentWeekRange() {
+  const today = new Date();
+  const start = new Date(today);
+  const day = today.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+
+  start.setDate(today.getDate() - daysSinceMonday);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    startDate: formatDateInputValue(start),
+    endDate: formatDateInputValue(end),
+  };
 }
 
 export function DashboardPage({ session, onLogout }: DashboardPageProps) {
@@ -48,16 +68,16 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     role: session.role,
   };
   const [tickets, setTickets] = useState<Ticket[]>(staticTickets);
+  const [statuses, setStatuses] = useState<LookupItem[]>([]);
+  const [roles, setRoles] = useState<LookupItem[]>([]);
   const [users, setUsers] = useState<UserLookupItem[]>(staticUsers);
-  const [priorities, setPriorities] = useState<LookupItem[]>([]);
   const [comments, setComments] = useState<TicketComment[]>(staticComments);
   const [attachments, setAttachments] = useState<TicketAttachment[]>(staticAttachments);
-  const [priorityFilter, setPriorityFilter] = useState(ALL_PRIORITIES);
   const [userFilter, setUserFilter] = useState(ALL_USERS);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [ticketSearch, setTicketSearch] = useState<TicketSearchResponse | null>(null);
-  const [overviewTimeFrame, setOverviewTimeFrame] = useState<OverviewTimeFrame>("all");
+  const [overviewDateRange, setOverviewDateRange] = useState(getCurrentWeekRange);
   const [ticketOverview, setTicketOverview] = useState<TicketOverview | null>(null);
   const [isTicketsLoading, setIsTicketsLoading] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
@@ -65,7 +85,6 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
   const isAdmin = currentUser.role === "admin";
-  const priorityId = priorityFilter === ALL_PRIORITIES ? undefined : Number(priorityFilter);
   const userId = userFilter === ALL_USERS ? undefined : Number(userFilter);
   const ticketUserId = isAdmin ? userId : currentUser.id;
   const overviewUserId = isAdmin ? undefined : currentUser.id;
@@ -83,49 +102,76 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
       return ticketOverview.statuses;
     }
 
-    return staticStatuses.map((status) => ({ ...status, count: 0 }));
-  }, [ticketOverview]);
+    return statuses.map((status) => ({ ...status, count: 0 }));
+  }, [statuses, ticketOverview]);
+
+  const fetchOverview = useCallback(() => {
+    return overviewService.getTicketOverview({
+      startDate: overviewDateRange.startDate,
+      endDate: overviewDateRange.endDate,
+      userId: overviewUserId,
+    });
+  }, [overviewDateRange.endDate, overviewDateRange.startDate, overviewUserId]);
+
+  const refreshOverview = useCallback(async () => {
+    const overview = await fetchOverview();
+
+    setTicketOverview(overview);
+  }, [fetchOverview]);
+
+  const refreshOverviewSafely = useCallback(async () => {
+    try {
+      await refreshOverview();
+    } catch {
+      toast.error("Failed to refresh overview");
+    }
+  }, [refreshOverview]);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, priorityFilter, userFilter]);
+  }, [debouncedSearch, userFilter]);
 
   useEffect(() => {
     let ignore = false;
 
-    Promise.allSettled([userService.getUsers(), priorityService.getPriorities()]).then(
-      ([usersResult, prioritiesResult]) => {
-        if (ignore) return;
+    Promise.allSettled([
+      userService.getUsers(),
+      statusService.getStatuses(),
+      isAdmin ? roleService.getRoles() : Promise.resolve([]),
+    ]).then(([usersResult, statusesResult, rolesResult]) => {
+      if (ignore) return;
 
-        if (usersResult.status === "fulfilled") {
-          setUsers(usersResult.value);
-        } else {
-          setUsers([]);
-          toast.error("Failed to load users");
-        }
+      if (usersResult.status === "fulfilled") {
+        setUsers(usersResult.value);
+      } else {
+        setUsers([]);
+        toast.error("Failed to load users");
+      }
 
-        if (prioritiesResult.status === "fulfilled") {
-          setPriorities(prioritiesResult.value);
-        } else {
-          setPriorities([]);
-          toast.error("Failed to load priorities");
-        }
-      },
-    );
+      if (statusesResult.status === "fulfilled") {
+        setStatuses(statusesResult.value);
+      } else {
+        setStatuses([]);
+        toast.error("Failed to load statuses");
+      }
+
+      if (rolesResult.status === "fulfilled") {
+        setRoles(rolesResult.value);
+      } else {
+        setRoles([]);
+        toast.error("Failed to load roles");
+      }
+    });
 
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     let ignore = false;
 
-    overviewService
-      .getTicketOverview({
-        timeFrame: overviewTimeFrame,
-        userId: overviewUserId,
-      })
+    fetchOverview()
       .then((overview) => {
         if (!ignore) {
           setTicketOverview(overview);
@@ -141,7 +187,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     return () => {
       ignore = true;
     };
-  }, [overviewTimeFrame, overviewUserId]);
+  }, [fetchOverview]);
 
   useEffect(() => {
     let ignore = false;
@@ -150,7 +196,6 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     ticketService
       .getTickets({
         page,
-        priorityId,
         userId: ticketUserId,
         search: debouncedSearch.trim() || undefined,
       })
@@ -174,7 +219,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     return () => {
       ignore = true;
     };
-  }, [debouncedSearch, page, priorityId, ticketUserId]);
+  }, [debouncedSearch, page, ticketUserId]);
 
   useEffect(() => {
     if (!selectedTicketId) return;
@@ -222,10 +267,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
         requester: createdTicket.requester,
         requesterEmail: createdTicket.requesterEmail,
         statusId: createdTicket.statusId,
-        status:
-          staticStatuses.find((status) => status.id === createdTicket.statusId)?.name ?? "N/A",
-        priorityId: createdTicket.priorityId,
-        priority: null,
+        status: statuses.find((status) => status.id === createdTicket.statusId)?.name ?? "N/A",
         userId: createdTicket.userId,
         assignee: null,
         createdAt: createdTicket.createdAt,
@@ -238,6 +280,8 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     if (createdTicket.attachments?.length) {
       setAttachments((current) => [...current, ...createdTicket.attachments!]);
     }
+
+    await refreshOverviewSafely();
   };
 
   const addStaffUser = async (request: CreateUserRequest) => {
@@ -247,24 +291,44 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
   };
 
   const saveTicket = async (updatedTicket: Ticket) => {
-    await ticketService.updateTicket(updatedTicket.id, {
+    const savedTicket = await ticketService.updateTicket(updatedTicket.id, {
       title: updatedTicket.title,
       body: updatedTicket.body,
-      statusId: updatedTicket.statusId,
-      priorityId: updatedTicket.priorityId,
-      ...(isAdmin ? { userId: updatedTicket.userId ?? null } : { actorUserId: currentUser.id }),
+      ...(isAdmin && updatedTicket.userId ? { userId: updatedTicket.userId } : {}),
     });
 
     setTickets((current) =>
-      current.map((ticket) => (ticket.id === updatedTicket.id ? updatedTicket : ticket)),
+      current.map((ticket) => (ticket.id === savedTicket.id ? savedTicket : ticket)),
     );
+    await refreshOverviewSafely();
   };
 
-  const deleteTicket = async (ticketId: number) => {
-    await ticketService.deleteTicket(ticketId);
-    setTickets((current) => current.filter((ticket) => ticket.id !== ticketId));
-    setComments((current) => current.filter((comment) => comment.ticketId !== ticketId));
-    setAttachments((current) => current.filter((attachment) => attachment.ticketId !== ticketId));
+  const cancelTicket = async (ticketId: number) => {
+    const cancelledTicket = await ticketService.cancelTicket(ticketId);
+    setTickets((current) =>
+      current.map((ticket) => (ticket.id === cancelledTicket.id ? cancelledTicket : ticket)),
+    );
+    await refreshOverviewSafely();
+    setSelectedTicketId(null);
+  };
+
+  const closeTicket = async (ticketId: number, body: string) => {
+    const closedTicket = await ticketService.closeTicket(ticketId, {
+      body,
+      authorName: currentUser.name,
+      authorEmail: currentUser.email,
+      userId: currentUser.role === "admin" ? null : currentUser.id,
+    });
+    const refreshedComments = await ticketService.getComments(ticketId);
+
+    setTickets((current) =>
+      current.map((ticket) => (ticket.id === closedTicket.id ? closedTicket : ticket)),
+    );
+    setComments((current) => [
+      ...current.filter((comment) => comment.ticketId !== ticketId),
+      ...refreshedComments,
+    ]);
+    await refreshOverviewSafely();
     setSelectedTicketId(null);
   };
 
@@ -310,18 +374,21 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
           <StatusFilterSection
             statusFilters={statusFilters}
             totalCount={ticketOverview?.totalCount ?? 0}
-            timeFrame={overviewTimeFrame}
-            onTimeFrameChange={setOverviewTimeFrame}
+            startDate={overviewDateRange.startDate}
+            endDate={overviewDateRange.endDate}
+            onStartDateChange={(startDate) =>
+              setOverviewDateRange((current) => ({ ...current, startDate }))
+            }
+            onEndDateChange={(endDate) =>
+              setOverviewDateRange((current) => ({ ...current, endDate }))
+            }
           />
           <TicketToolbar
             search={search}
-            priorityFilter={priorityFilter}
             userFilter={userFilter}
             showUserFilter={isAdmin}
-            priorities={priorities}
             users={users}
             onSearchChange={setSearch}
-            onPriorityChange={setPriorityFilter}
             onUserChange={setUserFilter}
           />
           <TicketTableSection
@@ -345,20 +412,19 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
         <StaffDialog
           open={isStaffDialogOpen}
           onOpenChange={setIsStaffDialogOpen}
-          roles={staticRoles}
+          roles={roles}
           onCreated={addStaffUser}
         />
         <TicketDrawer
           ticket={selectedTicket}
           user={currentUser}
-          statuses={staticStatuses}
-          priorities={priorities}
           users={users}
           comments={selectedComments}
           attachments={selectedAttachments}
           onClose={() => setSelectedTicketId(null)}
           onSave={saveTicket}
-          onDelete={deleteTicket}
+          onCancel={cancelTicket}
+          onCloseTicket={closeTicket}
           onAddComment={addComment}
           onReply={replyToRequester}
         />
