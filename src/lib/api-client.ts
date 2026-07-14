@@ -25,6 +25,7 @@ if (!configuredApiBaseUrl) {
 
 const apiBaseUrl = configuredApiBaseUrl.replace(/\/$/, "");
 const authSessionKey = "safi.auth.session";
+export const authSessionExpiredEvent = "safi.auth.expired";
 
 function buildUrl(path: string, query?: Record<string, QueryValue>) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -71,6 +72,10 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   const payload = await readResponse(response);
 
   if (!response.ok) {
+    if (response.status === 401) {
+      expireAuthSession();
+    }
+
     const message =
       payload && typeof payload === "object" && "message" in payload
         ? String(payload.message)
@@ -82,6 +87,40 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   return payload as T;
 }
 
+function decodeBase64Url(value: string) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+
+  return atob(paddedBase64);
+}
+
+function getTokenExpirationTime(token: string) {
+  const [, payload] = token.split(".");
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(decodeBase64Url(payload)) as { exp?: unknown };
+
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token: string) {
+  const expirationTime = getTokenExpirationTime(token);
+
+  return expirationTime !== null && expirationTime <= Date.now();
+}
+
+function expireAuthSession() {
+  localStorage.removeItem(authSessionKey);
+  window.dispatchEvent(new Event(authSessionExpiredEvent));
+}
+
 function getAuthToken() {
   const storedSession = localStorage.getItem(authSessionKey);
 
@@ -91,9 +130,20 @@ function getAuthToken() {
 
   try {
     const session = JSON.parse(storedSession) as { token?: unknown };
-    return typeof session.token === "string" && session.token.trim() ? session.token : null;
+    const token = typeof session.token === "string" ? session.token.trim() : "";
+
+    if (!token) {
+      return null;
+    }
+
+    if (isTokenExpired(token)) {
+      expireAuthSession();
+      return null;
+    }
+
+    return token;
   } catch {
-    localStorage.removeItem(authSessionKey);
+    expireAuthSession();
     return null;
   }
 }

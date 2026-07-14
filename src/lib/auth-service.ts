@@ -26,6 +26,7 @@ interface JwtPayload {
   unique_name?: string;
   email?: string;
   role?: string;
+  exp?: number;
 }
 
 const claimTypes = {
@@ -68,12 +69,33 @@ function decodeJwtPayload(token: string) {
   return JSON.parse(decodeBase64Url(payload)) as JwtPayload;
 }
 
+function getTokenExpirationTime(token: string) {
+  try {
+    const decodedToken = decodeJwtPayload(token);
+
+    return typeof decodedToken.exp === "number" ? decodedToken.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token: string) {
+  const expirationTime = getTokenExpirationTime(token);
+
+  return expirationTime !== null && expirationTime <= Date.now();
+}
+
 export const authService = {
   async login(request: LoginRequest) {
     clearAllClientCaches();
 
     const response = await apiClient.post<TokenResponse>("/api/auth/login", request);
     const decodedToken = decodeJwtPayload(response.token);
+
+    if (isTokenExpired(response.token)) {
+      throw new Error("Authentication token has expired.");
+    }
+
     const userId = getClaim(decodedToken, "nameid", claimTypes.nameIdentifier);
     const name = getClaim(decodedToken, "unique_name", claimTypes.name);
     const email = getClaim(decodedToken, "email", claimTypes.email);
@@ -116,11 +138,22 @@ export const authService = {
     }
 
     try {
-      return JSON.parse(storedSession) as AuthSession;
+      const session = JSON.parse(storedSession) as AuthSession;
+
+      if (!session.token || isTokenExpired(session.token)) {
+        this.logout();
+        return null;
+      }
+
+      return session;
     } catch {
-      localStorage.removeItem(AUTH_SESSION_KEY);
+      this.logout();
       return null;
     }
+  },
+
+  getSessionExpirationTime(session: AuthSession) {
+    return getTokenExpirationTime(session.token);
   },
 
   logout() {
