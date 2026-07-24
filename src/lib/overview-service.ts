@@ -7,11 +7,17 @@ export interface TicketStatusOverview {
   count: number;
 }
 
+export interface TicketDailyOverview {
+  date: string;
+  count: number;
+}
+
 export interface TicketOverview {
   startDate?: string | null;
   endDate?: string | null;
   totalCount: number;
   statuses: TicketStatusOverview[];
+  dailyTickets: TicketDailyOverview[];
 }
 
 export interface TicketOverviewQuery {
@@ -34,6 +40,7 @@ export const overviewService = {
       ...overview,
       totalCount: overview.totalCount ?? 0,
       statuses: Array.isArray(overview.statuses) ? overview.statuses : [],
+      dailyTickets: Array.isArray(overview.dailyTickets) ? overview.dailyTickets : [],
     };
   },
 

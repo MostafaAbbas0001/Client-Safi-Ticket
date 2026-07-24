@@ -32,9 +32,83 @@ export function TicketTableSection({
   onPageChange,
   onSelectTicket,
 }: TicketTableSectionProps) {
+  const renderPagination = () =>
+    isAdmin && (
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-background px-4 py-3 text-sm">
+        <span className="text-muted-foreground">
+          Page {page} of {pageCount}
+        </span>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onPageChange((current) => Math.max(1, current - 1))}
+            disabled={page <= 1 || isLoading}
+            className="w-full sm:w-auto"
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onPageChange((current) => Math.min(pageCount, current + 1))}
+            disabled={page >= pageCount || isLoading}
+            className="w-full sm:w-auto"
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    );
+
   return (
-    <section className="overflow-hidden rounded-lg border bg-card/95 shadow-[0_16px_45px_rgba(15,15,15,0.05)]">
-      <div className="overflow-x-auto">
+    <section className="overflow-hidden rounded-md border bg-card shadow-sm">
+      <div className="divide-y md:hidden">
+        {isLoading ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            Loading tickets...
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            No tickets match these filters.
+          </div>
+        ) : (
+          tickets.map((ticket) => (
+            <button
+              key={ticket.id}
+              type="button"
+              onClick={() => onSelectTicket(ticket)}
+              className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50"
+            >
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs text-muted-foreground">TK-{ticket.id}</p>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold">{ticket.title}</p>
+                </div>
+                <StatusBadge status={ticket.status} />
+              </div>
+              <p className="line-clamp-2 text-sm text-muted-foreground">
+                {getBodyPreview(ticket.body)}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                <div>
+                  <span className="block font-medium text-foreground">{ticket.requester}</span>
+                  Requester
+                </div>
+                <div className="text-right">
+                  <span className="block font-medium text-foreground">
+                    {ticket.assignee || (!isAdmin ? currentUser.name : "Unassigned")}
+                  </span>
+                  Assignee
+                </div>
+                <div className="col-span-2 border-t pt-2">{formatDate(ticket.createdAt)}</div>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <Table className="w-full min-w-[1280px] table-fixed">
           <colgroup>
             <col className="w-24" />
@@ -47,7 +121,7 @@ export function TicketTableSection({
             <col className="w-28" />
           </colgroup>
           <TableHeader>
-            <TableRow className="bg-secondary/60">
+            <TableRow className="bg-muted/60">
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Body preview</TableHead>
@@ -75,7 +149,7 @@ export function TicketTableSection({
               tickets.map((ticket) => (
                 <TableRow
                   key={ticket.id}
-                  className="cursor-pointer align-top transition-colors hover:bg-secondary/45"
+                  className="cursor-pointer align-top transition-colors hover:bg-muted/50"
                   onClick={() => onSelectTicket(ticket)}
                 >
                   <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
@@ -121,31 +195,7 @@ export function TicketTableSection({
         </Table>
       </div>
 
-      {isAdmin && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-background/60 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">
-            Page {page} of {pageCount}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onPageChange((current) => Math.max(1, current - 1))}
-              disabled={page <= 1 || isLoading}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onPageChange((current) => Math.min(pageCount, current + 1))}
-              disabled={page >= pageCount || isLoading}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+      {renderPagination()}
     </section>
   );
 }

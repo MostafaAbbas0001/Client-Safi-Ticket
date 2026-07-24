@@ -6,7 +6,6 @@ import { StaffDialog } from "./components/StaffDialog";
 import { StatusFilterSection, type StatusFilterItem } from "./components/StatusFilterSection";
 import { TicketDrawer } from "./components/TicketDrawer";
 import { TicketTableSection } from "./components/TicketTableSection";
-import { TicketToolbar } from "./components/TicketToolbar";
 import type { AuthSession } from "@/lib/auth-service";
 import { overviewService, type TicketOverview } from "@/lib/overview-service";
 import { roleService } from "@/lib/role-service";
@@ -31,12 +30,6 @@ import {
 import { ALL_USERS, useDebouncedValue } from "./dashboard-utils";
 
 const ALL_STATUSES = "all-statuses";
-
-interface DashboardPageProps {
-  session: AuthSession;
-  onLogout: () => void;
-}
-
 
 interface DashboardPageProps {
   session: AuthSession;
@@ -83,7 +76,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
   const [attachments, setAttachments] = useState<TicketAttachment[]>(staticAttachments);
   const [userFilter, setUserFilter] = useState(ALL_USERS);
   const [search, setSearch] = useState("");
-const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
   const [page, setPage] = useState(1);
   const [ticketSearch, setTicketSearch] = useState<TicketSearchResponse | null>(null);
   const [overviewDateRange, setOverviewDateRange] = useState(getCurrentWeekRange);
@@ -137,41 +130,65 @@ const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
     }
   }, [refreshOverview]);
 
-useEffect(() => {
-  setPage(1);
-}, [debouncedSearch, userFilter, statusFilter]);
+  useEffect(() => {
+    setPage(1);
+  }, [
+    debouncedSearch,
+    overviewDateRange.endDate,
+    overviewDateRange.startDate,
+    userFilter,
+    statusFilter,
+  ]);
 
   useEffect(() => {
     let ignore = false;
 
-    Promise.allSettled([
-      userService.getUsers(),
-      statusService.getStatuses(),
-      isAdmin ? roleService.getRoles() : Promise.resolve([]),
-    ]).then(([usersResult, statusesResult, rolesResult]) => {
-      if (ignore) return;
+    Promise.allSettled([userService.getUsers(), statusService.getStatuses()]).then(
+      ([usersResult, statusesResult]) => {
+        if (ignore) return;
 
-      if (usersResult.status === "fulfilled") {
-        setUsers(usersResult.value);
-      } else {
-        setUsers([]);
-        toast.error("Failed to load users");
-      }
+        if (usersResult.status === "fulfilled") {
+          setUsers(usersResult.value);
+        } else {
+          setUsers([]);
+          toast.error("Failed to load users");
+        }
 
-      if (statusesResult.status === "fulfilled") {
-        setStatuses(statusesResult.value);
-      } else {
-        setStatuses([]);
-        toast.error("Failed to load statuses");
-      }
+        if (statusesResult.status === "fulfilled") {
+          setStatuses(statusesResult.value);
+        } else {
+          setStatuses([]);
+          toast.error("Failed to load statuses");
+        }
+      },
+    );
 
-      if (rolesResult.status === "fulfilled") {
-        setRoles(rolesResult.value);
-      } else {
-        setRoles([]);
-        toast.error("Failed to load roles");
-      }
-    });
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setRoles([]);
+      return undefined;
+    }
+
+    let ignore = false;
+
+    roleService
+      .getRoles()
+      .then((loadedRoles) => {
+        if (!ignore) {
+          setRoles(loadedRoles);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setRoles([]);
+          toast.error("Failed to load roles");
+        }
+      });
 
     return () => {
       ignore = true;
@@ -203,13 +220,15 @@ useEffect(() => {
     let ignore = false;
 
     setIsTicketsLoading(true);
-   ticketService
-  .getTickets({
-    page,
-    userId: ticketUserId,
-    statusId,
-    search: debouncedSearch.trim() || undefined,
-  })
+    ticketService
+      .getTickets({
+        page,
+        userId: ticketUserId,
+        statusId,
+        search: debouncedSearch.trim() || undefined,
+        startDate: overviewDateRange.startDate,
+        endDate: overviewDateRange.endDate,
+      })
       .then((response) => {
         if (!ignore) {
           setTicketSearch(response);
@@ -230,7 +249,14 @@ useEffect(() => {
     return () => {
       ignore = true;
     };
-  }, [debouncedSearch, page, ticketUserId, statusId]);
+  }, [
+    debouncedSearch,
+    overviewDateRange.endDate,
+    overviewDateRange.startDate,
+    page,
+    ticketUserId,
+    statusId,
+  ]);
 
   useEffect(() => {
     if (!selectedTicketId) return;
@@ -370,8 +396,7 @@ useEffect(() => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f8f8f6]">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.36] [background-image:linear-gradient(to_right,rgba(18,18,18,.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(18,18,18,.06)_1px,transparent_1px)] [background-size:54px_54px]" />
+    <div className="relative min-h-screen overflow-hidden bg-background">
       <div className="relative min-h-screen">
         <DashboardHeader
           isAdmin={isAdmin}
@@ -381,12 +406,22 @@ useEffect(() => {
           onLogout={onLogout}
         />
 
-        <main className="w-full space-y-5 px-4 py-5 lg:px-6">
+        <main className="w-full space-y-4 px-4 py-4 lg:px-6">
           <StatusFilterSection
             statusFilters={statusFilters}
+            dailyTickets={ticketOverview?.dailyTickets ?? []}
             totalCount={ticketOverview?.totalCount ?? 0}
+            search={search}
+            userFilter={userFilter}
+            statusFilter={statusFilter}
+            showUserFilter={isAdmin}
+            users={users}
+            statuses={statuses}
             startDate={overviewDateRange.startDate}
             endDate={overviewDateRange.endDate}
+            onSearchChange={setSearch}
+            onUserChange={setUserFilter}
+            onStatusChange={setStatusFilter}
             onStartDateChange={(startDate) =>
               setOverviewDateRange((current) => ({ ...current, startDate }))
             }
@@ -394,17 +429,6 @@ useEffect(() => {
               setOverviewDateRange((current) => ({ ...current, endDate }))
             }
           />
-<TicketToolbar
-  search={search}
-  userFilter={userFilter}
-  statusFilter={statusFilter}
-  showUserFilter={isAdmin}
-  users={users}
-  statuses={statuses}
-  onSearchChange={setSearch}
-  onUserChange={setUserFilter}
-  onStatusChange={setStatusFilter}
-/>
           <TicketTableSection
             tickets={tickets}
             isAdmin={isAdmin}

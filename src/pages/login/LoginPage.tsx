@@ -124,28 +124,19 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f8f8f6] text-foreground">
-      <div className="absolute inset-0 opacity-[0.42] [background-image:linear-gradient(to_right,rgba(18,18,18,.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(18,18,18,.06)_1px,transparent_1px)] [background-size:54px_54px]" />
-
-      <div className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
-        <div className="w-full max-w-[480px]">
-          <div className="mb-9 flex flex-col items-center text-center">
-            <img
-              src={safiLogoUrl}
-              alt="Safi Ticketing System"
-              className="h-auto w-full max-w-[390px] object-contain"
-            />
-          </div>
-
-          <form
-            onSubmit={onSubmit}
-            className="rounded-lg border bg-card/95 p-5 shadow-[0_18px_55px_rgba(15,15,15,0.10)] backdrop-blur sm:p-6"
-          >
-            <div className="mb-6">
-              <p className="text-sm font-medium uppercase text-muted-foreground">Secure sign in</p>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
+        <div className="w-full max-w-[440px]">
+          <form onSubmit={onSubmit} className="rounded-md border bg-card p-5 shadow-sm sm:p-6">
+            <div className="mb-6 flex justify-center border-b pb-5">
+              <img
+                src={safiLogoUrl}
+                alt="Safi Ticketing System"
+                className="h-auto w-full max-w-[280px] object-contain"
+              />
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -155,7 +146,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@company.com"
                   autoComplete="username"
-                  className="h-11"
+                  className="h-10"
                 />
               </div>
 
@@ -168,11 +159,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Password"
                   autoComplete="current-password"
-                  className="h-11"
+                  className="h-10"
                 />
               </div>
 
-              <div className="rounded-lg border bg-secondary/45 p-3">
+              <div className="rounded-md border bg-muted/40 p-3">
                 <div className="flex gap-3">
                   <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
@@ -261,7 +252,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 </div>
               )}
 
-              <Button type="submit" className="h-11 w-full" disabled={isSigningIn}>
+              <Button type="submit" className="h-10 w-full" disabled={isSigningIn}>
                 {isSigningIn ? "Signing in..." : "Sign in"}
               </Button>
             </div>

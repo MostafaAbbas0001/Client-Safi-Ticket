@@ -8,6 +8,8 @@ export interface TicketQuery {
   statusId?: number;
   userId?: number;
   search?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface TicketSearchResponse {
@@ -27,6 +29,7 @@ export interface CreateTicketRequest {
   title: string;
   body: string;
   requester: string;
+  requesterEmail: string;
 }
 
 export interface CreateTicketWithAttachmentsRequest extends CreateTicketRequest {
@@ -121,6 +124,7 @@ export const ticketService = {
     formData.set("title", request.title);
     formData.set("body", request.body);
     formData.set("requester", request.requester);
+    formData.set("requesterEmail", request.requesterEmail);
 
     request.attachments?.forEach((attachment) => {
       formData.append("attachments", attachment);

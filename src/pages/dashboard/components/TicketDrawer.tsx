@@ -39,6 +39,7 @@ import type {
   UserLookupItem,
 } from "../dashboard-data";
 import { formatAttachmentSize, formatDate } from "../dashboard-utils";
+import { EmailBody } from "./EmailBody";
 import { StatusBadge } from "./TicketBadges";
 
 interface TicketDrawerProps {
@@ -79,23 +80,23 @@ function getCommentPresentation(comment: TicketComment) {
   if (comment.isInternalNote) {
     return {
       label: "Internal note",
-      className: "border-l-amber-400 bg-amber-50/60",
-      badgeClassName: "bg-amber-100 text-amber-800",
+      className: "border-l-amber-500 bg-background",
+      badgeClassName: "border-amber-300 bg-amber-50 text-amber-800",
     };
   }
 
   if (comment.authorType.toLowerCase() === "requester") {
     return {
       label: "Requester email",
-      className: "border-l-sky-400 bg-sky-50/60",
-      badgeClassName: "bg-sky-100 text-sky-800",
+      className: "border-l-blue-600 bg-background",
+      badgeClassName: "border-blue-300 bg-blue-50 text-blue-800",
     };
   }
 
   return {
     label: "Email reply",
-    className: "border-l-emerald-500 bg-emerald-50/60",
-    badgeClassName: "bg-emerald-100 text-emerald-800",
+    className: "border-l-emerald-600 bg-background",
+    badgeClassName: "border-emerald-300 bg-emerald-50 text-emerald-800",
   };
 }
 
@@ -122,6 +123,7 @@ export function TicketDrawer({
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [drawerWidth, setDrawerWidth] = useState(720);
 
   useEffect(() => {
     if (ticket) {
@@ -274,25 +276,63 @@ export function TicketDrawer({
     }
   };
 
+  const startDrawerResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const resizeDrawer = (pointerEvent: PointerEvent) => {
+      const viewportWidth = window.innerWidth;
+      const nextWidth = viewportWidth - pointerEvent.clientX;
+      const minWidth = Math.min(520, viewportWidth - 24);
+      const maxWidth = Math.max(minWidth, viewportWidth - 24);
+
+      setDrawerWidth(Math.min(Math.max(nextWidth, minWidth), maxWidth));
+    };
+
+    const stopDrawerResize = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", resizeDrawer);
+      window.removeEventListener("pointerup", stopDrawerResize);
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", resizeDrawer);
+    window.addEventListener("pointerup", stopDrawerResize);
+  };
+
   return (
     <>
       <Sheet open={Boolean(ticket)} onOpenChange={(open) => !open && onClose()}>
         <SheetContent
           side="right"
-          className="flex w-full flex-col overflow-y-auto p-0 sm:max-w-2xl"
+          className="flex w-full flex-col overflow-y-auto p-0 sm:max-w-none"
+          style={{ width: `min(100vw, ${drawerWidth}px)` }}
         >
-          <SheetHeader className="border-b bg-muted/20 px-5 py-5 pr-12 text-left">
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize ticket details"
+            tabIndex={0}
+            onPointerDown={startDrawerResize}
+            className="absolute inset-y-0 left-0 z-10 hidden w-2 cursor-col-resize touch-none border-l border-transparent transition-colors hover:border-primary/50 hover:bg-primary/10 sm:block"
+          />
+          <SheetHeader className="border-b bg-card px-4 py-4 pr-12 text-left sm:px-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 space-y-2">
-                <SheetDescription className="font-semibold">TK-{activeTicket.id}</SheetDescription>
-                <SheetTitle className="text-xl leading-7">{activeTicket.title}</SheetTitle>
+              <div className="min-w-0 space-y-1.5">
+                <SheetDescription className="font-mono text-xs font-semibold">
+                  TK-{activeTicket.id}
+                </SheetDescription>
+                <SheetTitle className="text-lg leading-6 sm:text-xl">
+                  {activeTicket.title}
+                </SheetTitle>
               </div>
               <StatusBadge status={activeTicket.status} />
             </div>
           </SheetHeader>
 
-          <div className="flex-1 divide-y px-5">
-            <div className="grid gap-4 py-5 sm:grid-cols-3">
+          <div className="flex-1 divide-y px-4 sm:px-5">
+            <div className="grid gap-3 py-4 sm:grid-cols-3">
               <DetailItem
                 label="Requester"
                 value={activeTicket.requester}
@@ -312,22 +352,13 @@ export function TicketDrawer({
               />
             </div>
 
-            <section className="py-5">
-              <div className="mb-3">
-                <Label>Full body</Label>
-              </div>
-              <div className="min-h-28 whitespace-pre-wrap rounded-md bg-muted/30 px-4 py-3 text-sm leading-6 text-foreground">
-                {activeTicket.body?.trim() || "No body provided."}
-              </div>
-            </section>
-
-            <section className="py-5">
+            <section className="py-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <Label className="flex items-center gap-2">
                   <Paperclip className="h-4 w-4" />
                   Attachments
                 </Label>
-                <span className="rounded-full border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                <span className="rounded-md border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                   {attachments.length}
                 </span>
               </div>
@@ -335,7 +366,7 @@ export function TicketDrawer({
                 {attachments.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No attachments.</p>
                 ) : (
-                  <ul className="divide-y rounded-md border">
+                  <ul className="divide-y rounded-md border bg-background">
                     {attachments.map((attachment) => (
                       <li key={attachment.id}>
                         <button
@@ -355,17 +386,17 @@ export function TicketDrawer({
               </div>
             </section>
 
-            <section className="py-5">
+            <section className="py-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <Label className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Conversation
                 </Label>
-                <span className="rounded-full border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                <span className="rounded-md border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                   {comments.length} {comments.length === 1 ? "reply" : "replies"}
                 </span>
               </div>
-              <div className="max-h-72 space-y-2 overflow-y-auto">
+              <div className="max-h-[42vh] space-y-2 overflow-y-auto">
                 {comments.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No replies yet.</p>
                 ) : (
@@ -375,7 +406,7 @@ export function TicketDrawer({
                     return (
                       <div
                         key={comment.id}
-                        className={`rounded-md border-l-4 px-3 py-3 text-sm ${presentation.className}`}
+                        className={`rounded-md border border-l-4 px-3 py-3 text-sm shadow-sm ${presentation.className}`}
                       >
                         <div className="mb-1 flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -384,7 +415,7 @@ export function TicketDrawer({
                                 {comment.authorName || comment.authorType}
                               </span>
                               <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${presentation.badgeClassName}`}
+                                className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold ${presentation.badgeClassName}`}
                               >
                                 {presentation.label}
                               </span>
@@ -399,7 +430,9 @@ export function TicketDrawer({
                             {new Date(comment.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <p className="whitespace-pre-wrap text-muted-foreground">{comment.body}</p>
+                        <div className="overflow-x-auto text-muted-foreground">
+                          <EmailBody value={comment.body} />
+                        </div>
                       </div>
                     );
                   })
@@ -407,7 +440,7 @@ export function TicketDrawer({
               </div>
             </section>
 
-            <section className="py-5">
+            <section className="py-4">
               <div className="mb-3">
                 <Label htmlFor="ticket-message">Message</Label>
               </div>
@@ -440,7 +473,7 @@ export function TicketDrawer({
             </section>
 
             {user.role === "admin" && (
-              <section className="py-5">
+              <section className="py-4">
                 <div className="mb-3">
                   <Label htmlFor="ticket-assignee">Assignee</Label>
                 </div>
@@ -448,7 +481,7 @@ export function TicketDrawer({
                   id="ticket-assignee"
                   value={draftUserId}
                   onChange={(event) => setDraftUserId(event.target.value)}
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm shadow-sm outline-none focus:ring-2 focus:ring-primary"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="" disabled>
                     Select assignee
@@ -464,7 +497,7 @@ export function TicketDrawer({
           </div>
 
           <SheetFooter
-            className={`border-t bg-background px-5 py-4 !grid gap-2 sm:space-x-0 ${user.role === "admin" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}
+            className={`border-t bg-card px-4 py-3 !grid gap-2 sm:space-x-0 ${user.role === "admin" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}
           >
             {user.role === "admin" && (
               <Button
