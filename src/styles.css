@@ -139,6 +139,11 @@
 }
 
 @layer components {
+  .recharts-wrapper :where(path, rect, sector, g, svg):focus,
+  .recharts-wrapper :where(path, rect, sector, g, svg):focus-visible {
+    outline: none;
+  }
+
   .email-body-html {
     overflow-wrap: anywhere;
   }

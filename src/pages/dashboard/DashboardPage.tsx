@@ -29,7 +29,7 @@ import {
 } from "./dashboard-data";
 import { ALL_USERS, useDebouncedValue } from "./dashboard-utils";
 
-const ALL_STATUSES = "all-statuses";
+const EMPTY_DAILY_TICKETS: TicketOverview["dailyTickets"] = [];
 
 interface DashboardPageProps {
   session: AuthSession;
@@ -76,7 +76,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
   const [attachments, setAttachments] = useState<TicketAttachment[]>(staticAttachments);
   const [userFilter, setUserFilter] = useState(ALL_USERS);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState(ALL_STATUSES);
+  const [statusFilterIds, setStatusFilterIds] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [ticketSearch, setTicketSearch] = useState<TicketSearchResponse | null>(null);
   const [overviewDateRange, setOverviewDateRange] = useState(getCurrentWeekRange);
@@ -88,9 +88,10 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
   const debouncedSearch = useDebouncedValue(search);
   const isAdmin = currentUser.role === "admin";
   const userId = userFilter === ALL_USERS ? undefined : Number(userFilter);
-  const statusId = statusFilter === ALL_STATUSES ? undefined : Number(statusFilter);
+  const statusIds = statusFilterIds.length > 0 ? statusFilterIds : undefined;
   const ticketUserId = isAdmin ? userId : currentUser.id;
   const overviewUserId = isAdmin ? undefined : currentUser.id;
+  const dailyTickets = ticketOverview?.dailyTickets ?? EMPTY_DAILY_TICKETS;
   const pageSize = ticketSearch?.pageSize ?? 50;
   const totalCount = ticketSearch?.totalCount ?? tickets.length;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -137,7 +138,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     overviewDateRange.endDate,
     overviewDateRange.startDate,
     userFilter,
-    statusFilter,
+    statusFilterIds,
   ]);
 
   useEffect(() => {
@@ -224,7 +225,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
       .getTickets({
         page,
         userId: ticketUserId,
-        statusId,
+        statusIds,
         search: debouncedSearch.trim() || undefined,
         startDate: overviewDateRange.startDate,
         endDate: overviewDateRange.endDate,
@@ -255,7 +256,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     overviewDateRange.startDate,
     page,
     ticketUserId,
-    statusId,
+    statusIds,
   ]);
 
   useEffect(() => {
@@ -409,11 +410,11 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
         <main className="w-full space-y-4 px-4 py-4 lg:px-6">
           <StatusFilterSection
             statusFilters={statusFilters}
-            dailyTickets={ticketOverview?.dailyTickets ?? []}
+            dailyTickets={dailyTickets}
             totalCount={ticketOverview?.totalCount ?? 0}
             search={search}
             userFilter={userFilter}
-            statusFilter={statusFilter}
+            statusFilterIds={statusFilterIds}
             showUserFilter={isAdmin}
             users={users}
             statuses={statuses}
@@ -421,7 +422,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
             endDate={overviewDateRange.endDate}
             onSearchChange={setSearch}
             onUserChange={setUserFilter}
-            onStatusChange={setStatusFilter}
+            onStatusChange={setStatusFilterIds}
             onStartDateChange={(startDate) =>
               setOverviewDateRange((current) => ({ ...current, startDate }))
             }

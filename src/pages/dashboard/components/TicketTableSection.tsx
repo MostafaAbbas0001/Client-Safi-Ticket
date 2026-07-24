@@ -96,10 +96,10 @@ export function TicketTableSection({
                   Requester
                 </div>
                 <div className="text-right">
+                  Assignee
                   <span className="block font-medium text-foreground">
                     {ticket.assignee || (!isAdmin ? currentUser.name : "Unassigned")}
                   </span>
-                  Assignee
                 </div>
                 <div className="col-span-2 border-t pt-2">{formatDate(ticket.createdAt)}</div>
               </div>

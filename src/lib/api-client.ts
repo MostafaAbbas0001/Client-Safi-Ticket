@@ -1,4 +1,5 @@
-type QueryValue = string | number | boolean | null | undefined;
+type QueryPrimitive = string | number | boolean | null | undefined;
+type QueryValue = QueryPrimitive | QueryPrimitive[];
 
 export interface ApiRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
@@ -32,9 +33,13 @@ function buildUrl(path: string, query?: Record<string, QueryValue>) {
   const url = new URL(`${apiBaseUrl}${normalizedPath}`);
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
-    if (value !== null && value !== undefined && value !== "") {
-      url.searchParams.set(key, String(value));
-    }
+    const values = Array.isArray(value) ? value : [value];
+
+    values.forEach((item) => {
+      if (item !== null && item !== undefined && item !== "") {
+        url.searchParams.append(key, String(item));
+      }
+    });
   });
 
   return url.toString();

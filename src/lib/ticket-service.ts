@@ -6,6 +6,7 @@ import type { Ticket, TicketAttachment, TicketComment } from "@/pages/dashboard/
 export interface TicketQuery {
   page?: number;
   statusId?: number;
+  statusIds?: number[];
   userId?: number;
   search?: string;
   startDate?: string;
