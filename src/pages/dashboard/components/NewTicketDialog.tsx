@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { FileText, Paperclip, TicketPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,7 +100,10 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New ticket</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <TicketPlus className="h-4 w-4 text-[#146ef5]" />
+            New ticket
+          </DialogTitle>
           <DialogDescription>Submit a helpdesk request with supporting details.</DialogDescription>
         </DialogHeader>
 
@@ -153,7 +157,10 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="new-ticket-attachments">Attachments</Label>
+            <Label htmlFor="new-ticket-attachments" className="flex items-center gap-2">
+              <Paperclip className="h-3.5 w-3.5 text-[#63748a]" />
+              Attachments
+            </Label>
             <Input
               id="new-ticket-attachments"
               type="file"
@@ -161,10 +168,14 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
               onChange={(event) => setAttachments(Array.from(event.target.files ?? []))}
             />
             {attachments.length > 0 && (
-              <ul className="divide-y rounded-md border text-sm text-muted-foreground">
+              <ul className="divide-y divide-[#e2e7ee] rounded-[7px] border border-[#d9e1ea] bg-[#fbfcfe] text-sm text-[#63748a]">
                 {attachments.map((file) => (
-                  <li key={`${file.name}-${file.size}`} className="px-3 py-2">
-                    {file.name}
+                  <li
+                    key={`${file.name}-${file.size}`}
+                    className="flex items-center gap-2 px-3 py-2"
+                  >
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-[#63748a]" />
+                    <span className="truncate">{file.name}</span>
                   </li>
                 ))}
               </ul>
@@ -184,9 +195,11 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
               onClick={() => onOpenChange(false)}
               className="w-full"
             >
+              <X className="h-4 w-4" />
               Cancel
             </Button>
             <Button type="submit" disabled={isCreating} className="w-full">
+              <TicketPlus className="h-4 w-4" />
               {isCreating ? "Creating..." : "Create ticket"}
             </Button>
           </DialogFooter>

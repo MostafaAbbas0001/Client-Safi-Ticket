@@ -1,7 +1,15 @@
 import { useState } from "react";
-import { LogOut, Menu, PlusCircle, UserPlus } from "lucide-react";
-import { safiLogoUrl } from "@/assets";
-import { Button } from "@/components/ui/button";
+import {
+  CircleUserRound,
+  Gauge,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  TicketPlus,
+  UserRoundPlus,
+} from "lucide-react";
+import { safiIconUrl, safiLogoUrl } from "@/assets";
 import {
   Sheet,
   SheetClose,
@@ -14,21 +22,68 @@ import type { User } from "../dashboard-data";
 
 interface DashboardHeaderProps {
   isAdmin: boolean;
+  isSidebarCollapsed: boolean;
   user: User;
   onAddStaff: () => void;
   onNewTicket: () => void;
   onLogout: () => void;
+  onToggleSidebar: () => void;
+}
+
+function SidebarAction({
+  icon,
+  label,
+  onClick,
+  active = false,
+  danger = false,
+  collapsed,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  active?: boolean;
+  danger?: boolean;
+  collapsed: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={collapsed ? label : undefined}
+      aria-label={label}
+      onClick={onClick}
+      className={`group flex h-10 w-full items-center rounded-[6px] text-[12px] font-medium transition-colors ${
+        collapsed ? "justify-center" : "gap-3 px-3"
+      } ${
+        active
+          ? "bg-[#f1f6fc] text-[#1268df] shadow-[inset_2px_0_0_#146ef5]"
+          : danger
+            ? "text-[#b82739] hover:bg-[#fff5f6]"
+            : "text-[#344a64] hover:bg-[#f5f7fa] hover:text-[#102445]"
+      }`}
+    >
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
+      <span
+        className={`overflow-hidden whitespace-nowrap text-left transition-[width,opacity,transform] duration-150 ${
+          collapsed ? "w-0 -translate-x-1 opacity-0" : "w-[120px] opacity-100 delay-75"
+        }`}
+      >
+        {label}
+      </span>
+    </button>
+  );
 }
 
 export function DashboardHeader({
   isAdmin,
+  isSidebarCollapsed,
   user,
   onAddStaff,
   onNewTicket,
   onLogout,
+  onToggleSidebar,
 }: DashboardHeaderProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const roleLabel = isAdmin ? "Administrator" : "Officer";
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const runMobileAction = (action: () => void) => {
     setIsMobileMenuOpen(false);
@@ -36,125 +91,191 @@ export function DashboardHeader({
   };
 
   return (
-    <header className="border-b bg-card/95 shadow-sm">
-      <div className="grid w-full gap-3 px-4 py-2 sm:py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center lg:px-6">
-        <div className="relative flex min-h-10 min-w-0 items-center justify-center sm:min-h-12 sm:justify-start sm:gap-5">
-          <div className="flex h-12 shrink-0 items-center">
-            <img
-              src={safiLogoUrl}
-              alt="Safi Ticketing System"
-              className="h-12 w-auto max-w-[220px] object-contain"
-            />
-          </div>
+    <>
+      <header className="relative flex h-16 items-center border-b border-[#dde4ec] bg-white px-4 lg:hidden">
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              aria-label="Open navigation"
+              className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-[#d9e1ea] bg-white text-[#3e536d] transition-colors hover:bg-[#f5f8fb] hover:text-[#102445]"
+            >
+              <Menu size={18} />
+            </button>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            className="flex w-[82vw] max-w-[300px] flex-col border-r border-[#dce3eb] bg-white p-0 shadow-[8px_0_24px_rgba(15,35,66,0.1)]"
+          >
+            <SheetHeader className="border-b border-[#e3e8ee] px-4 py-4 text-left">
+              <img
+                src={safiLogoUrl}
+                alt="SAFITICKET IT Department"
+                className="h-auto w-[158px] object-contain"
+              />
+              <SheetTitle className="sr-only">Navigation</SheetTitle>
+            </SheetHeader>
 
-          <div className="hidden min-w-0 border-l pl-4 sm:block">
-            <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {roleLabel} - {user.email}
-            </p>
-          </div>
-
-          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Open navigation menu"
-                className="absolute left-0 h-8 w-8 sm:hidden"
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[82vw] max-w-80 p-0 sm:hidden">
-              <SheetHeader className="border-b px-4 py-3 text-left">
-                <SheetTitle className="text-sm font-semibold">Menu</SheetTitle>
-              </SheetHeader>
-
-              <div className="border-b px-4 py-3">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Account</p>
-                <div className="mt-3 space-y-2 text-sm">
-                  <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-3">
-                    <span className="text-xs text-muted-foreground">Name</span>
-                    <span className="truncate font-medium text-foreground">{user.name}</span>
-                  </div>
-                  <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-3">
-                    <span className="text-xs text-muted-foreground">Role</span>
-                    <span className="text-foreground">{roleLabel}</span>
-                  </div>
-                  <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-3">
-                    <span className="text-xs text-muted-foreground">Email</span>
-                    <span className="break-all leading-5 text-foreground">{user.email}</span>
-                  </div>
+            <div className="border-b border-[#e7ebf0] px-4 py-4">
+              <div className="flex items-start gap-2.5">
+                <CircleUserRound className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#48617b]" />
+                <div className="min-w-0">
+                  <p className="truncate text-[12px] font-semibold text-[#102445]">{user.name}</p>
+                  <p className="mt-1 text-[10px] font-medium text-[#63748a]">{roleLabel}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-[#8290a2]">{user.email}</p>
                 </div>
               </div>
+            </div>
 
-              <div className="px-2 py-3">
-                <p className="px-2 pb-1 text-xs font-semibold uppercase text-muted-foreground">
-                  Actions
-                </p>
-                {isAdmin && (
-                  <>
-                    <SheetClose asChild>
-                      <button
-                        type="button"
-                        className="flex h-9 w-full items-center gap-2 rounded px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={() => runMobileAction(onAddStaff)}
-                      >
-                        <UserPlus className="h-4 w-4" />
-                        Staff
-                      </button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <button
-                        type="button"
-                        className="flex h-9 w-full items-center gap-2 rounded px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={() => runMobileAction(onNewTicket)}
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                        New ticket
-                      </button>
-                    </SheetClose>
-                  </>
-                )}
-                {isAdmin && <div className="my-1 border-t" />}
+            <nav className="space-y-1 px-3 py-3" aria-label="Mobile navigation">
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  className="flex h-10 w-full items-center gap-3 rounded-[6px] bg-[#f1f6fc] px-3 text-[12px] font-medium text-[#1268df] shadow-[inset_2px_0_0_#146ef5]"
+                >
+                  <Gauge size={17} />
+                  Dashboard
+                </button>
+              </SheetClose>
+              {isAdmin && (
                 <SheetClose asChild>
                   <button
                     type="button"
-                    className="flex h-9 w-full items-center gap-2 rounded px-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => runMobileAction(onLogout)}
+                    onClick={() => runMobileAction(onAddStaff)}
+                    className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-[12px] font-medium text-[#344a64] hover:bg-[#f5f7fa]"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
+                    <UserRoundPlus size={17} />
+                    Add Staff
                   </button>
                 </SheetClose>
-              </div>
-            </SheetContent>
-          </Sheet>
+              )}
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  onClick={() => runMobileAction(onNewTicket)}
+                  className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-[12px] font-medium text-[#344a64] hover:bg-[#f5f7fa]"
+                >
+                  <TicketPlus size={17} />
+                  New Ticket
+                </button>
+              </SheetClose>
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  onClick={() => runMobileAction(onLogout)}
+                  className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-[12px] font-medium text-[#b82739] hover:bg-[#fff5f6]"
+                >
+                  <LogOut size={17} />
+                  Sign Out
+                </button>
+              </SheetClose>
+            </nav>
+          </SheetContent>
+        </Sheet>
+
+        <img
+          src={safiLogoUrl}
+          alt="SAFITICKET IT Department"
+          className="absolute left-1/2 h-auto w-[150px] -translate-x-1/2 object-contain"
+        />
+      </header>
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#dde4ec] bg-white py-4 transition-[width,padding] duration-200 lg:flex lg:flex-col ${
+          isSidebarCollapsed ? "w-[72px] px-2" : "w-[212px] px-3"
+        }`}
+      >
+        <div className="relative h-[52px] w-full overflow-hidden">
+          <img
+            src={safiLogoUrl}
+            alt="SAFITICKET IT Department"
+            className={`absolute left-1/2 top-0 h-auto w-[166px] -translate-x-1/2 object-contain transition-opacity ${
+              isSidebarCollapsed ? "opacity-0 duration-100" : "opacity-100 delay-100 duration-150"
+            }`}
+          />
+          <img
+            src={safiIconUrl}
+            alt=""
+            aria-hidden="true"
+            className={`absolute left-1/2 top-0 h-8 w-8 -translate-x-1/2 object-contain transition-opacity ${
+              isSidebarCollapsed ? "opacity-100 delay-100 duration-150" : "opacity-0 duration-100"
+            }`}
+          />
         </div>
 
-        <div className="relative hidden sm:block md:col-start-2">
-          <div className="hidden gap-2 sm:flex sm:items-center sm:justify-end">
-            {isAdmin && (
-              <>
-                <Button variant="outline" size="sm" className="h-9" onClick={onAddStaff}>
-                  <UserPlus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Add Staff</span>
-                  <span className="sm:hidden">Staff</span>
-                </Button>
-                <Button size="sm" className="h-9" onClick={onNewTicket}>
-                  <PlusCircle className="h-4 w-4" />
-                  <span>New ticket</span>
-                </Button>
-              </>
-            )}
-            <Button variant="destructive" size="sm" className="h-9" onClick={onLogout}>
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
+        <div
+          title={isSidebarCollapsed ? `${user.name} - ${roleLabel}` : undefined}
+          className={`mt-2 flex h-[62px] items-center overflow-hidden border-y border-[#e7ebf0] transition-[padding] duration-200 ${
+            isSidebarCollapsed ? "justify-center" : "gap-2.5 px-2"
+          }`}
+        >
+          <CircleUserRound className="h-[18px] w-[18px] shrink-0 text-[#48617b]" />
+          <div
+            className={`min-w-0 overflow-hidden whitespace-nowrap transition-[width,opacity,transform] duration-150 ${
+              isSidebarCollapsed
+                ? "w-0 -translate-x-1 opacity-0"
+                : "w-[150px] opacity-100 delay-100"
+            }`}
+          >
+            <p className="truncate text-[11px] font-semibold text-[#102445]">{user.name}</p>
+            <p className="mt-1 truncate text-[9px] font-medium text-[#63748a]">{roleLabel}</p>
+            <p className="mt-0.5 truncate text-[9px] text-[#8290a2]">{user.email}</p>
           </div>
         </div>
-      </div>
-    </header>
+
+        <nav aria-label="Primary navigation" className="mt-3 space-y-1">
+          <SidebarAction
+            icon={<Gauge size={17} />}
+            label="Dashboard"
+            active
+            collapsed={isSidebarCollapsed}
+          />
+          {isAdmin && (
+            <SidebarAction
+              icon={<UserRoundPlus size={17} />}
+              label="Add Staff"
+              onClick={onAddStaff}
+              collapsed={isSidebarCollapsed}
+            />
+          )}
+          <SidebarAction
+            icon={<TicketPlus size={17} />}
+            label="New Ticket"
+            onClick={onNewTicket}
+            collapsed={isSidebarCollapsed}
+          />
+          <SidebarAction
+            icon={<LogOut size={17} />}
+            label="Sign Out"
+            onClick={onLogout}
+            danger
+            collapsed={isSidebarCollapsed}
+          />
+        </nav>
+
+        <div className="mt-auto border-t border-[#e7ebf0] pt-3">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`flex h-9 w-full items-center rounded-[6px] text-[11px] font-medium text-[#5a6d83] transition-colors hover:bg-[#f5f7fa] hover:text-[#102445] ${
+              isSidebarCollapsed ? "justify-center" : "gap-3 px-3"
+            }`}
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+              {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            </span>
+            <span
+              className={`overflow-hidden whitespace-nowrap transition-[width,opacity] duration-150 ${
+                isSidebarCollapsed ? "w-0 opacity-0" : "w-[120px] opacity-100 delay-75"
+              }`}
+            >
+              Collapse sidebar
+            </span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

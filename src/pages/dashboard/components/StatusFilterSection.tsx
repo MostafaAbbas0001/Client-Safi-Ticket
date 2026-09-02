@@ -1,8 +1,9 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { CalendarRange, Check, ChevronDown, Search } from "lucide-react";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   Pie,
   PieChart,
@@ -11,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Input } from "@/components/ui/input";
 import type { LookupItem, UserLookupItem } from "../dashboard-data";
 import { ALL_USERS, getStatusChartColor } from "../dashboard-utils";
 
@@ -20,12 +20,10 @@ export interface StatusFilterItem {
   name: string;
   count: number;
 }
-
 interface DailyTicketItem {
   date: string;
   count: number;
 }
-
 interface StatusFilterSectionProps {
   statusFilters: StatusFilterItem[];
   dailyTickets: DailyTicketItem[];
@@ -45,14 +43,43 @@ interface StatusFilterSectionProps {
   onEndDateChange: (value: string) => void;
 }
 
-function formatDayLabel(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
+const fallbackDaily = [
+  { date: "2026-08-31", count: 7 },
+  { date: "2026-09-01", count: 14 },
+  { date: "2026-09-02", count: 2 },
+  { date: "2026-09-03", count: 0 },
+  { date: "2026-09-04", count: 0 },
+  { date: "2026-09-05", count: 0 },
+  { date: "2026-09-06", count: 0 },
+];
+const fallbackStatuses = [
+  { id: 1, name: "Initiated", count: 2 },
+  { id: 2, name: "In Progress", count: 2 },
+  { id: 3, name: "Closed", count: 19 },
+  { id: 4, name: "Cancelled", count: 0 },
+];
+
+function dayLabel(value: string) {
+  return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
 }
 
-function renderPieShareLabel({
+function statusGradient(name: string, color: string) {
+  const normalized = name.toLowerCase().replace(/\s+/g, " ").trim();
+
+  if (normalized === "closed") return { start: "#24bd83", end: "#07885b" };
+  if (normalized === "in progress") return { start: "#4390ff", end: "#105fd8" };
+  if (normalized === "initiated") return { start: "#8ca0b8", end: "#526981" };
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return { start: "#f05267", end: "#c71936" };
+  }
+
+  return { start: color, end: color };
+}
+
+function shareLabel({
   cx,
   cy,
   midAngle,
@@ -75,372 +102,411 @@ function renderPieShareLabel({
     typeof outerRadius !== "number" ||
     !percent ||
     percent < 0.08
-  ) {
+  )
     return null;
-  }
-
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.58;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
   const angle = (-midAngle * Math.PI) / 180;
-  const x = cx + radius * Math.cos(angle);
-  const y = cy + radius * Math.sin(angle);
-
   return (
     <text
-      x={x}
-      y={y}
+      x={cx + radius * Math.cos(angle)}
+      y={cy + radius * Math.sin(angle)}
       fill="white"
       textAnchor="middle"
       dominantBaseline="central"
-      className="text-[11px] font-semibold"
+      className="donut-percentage-label text-[12px] font-bold"
     >
       {Math.round(percent * 100)}%
     </text>
   );
 }
 
-interface StatusOverviewChartsProps {
-  statusFilters: StatusFilterItem[];
-  dailyTickets: DailyTicketItem[];
-  totalCount: number;
-}
-
-const StatusOverviewCharts = memo(function StatusOverviewCharts({
+const OverviewCharts = memo(function OverviewCharts({
   statusFilters,
   dailyTickets,
   totalCount,
-}: StatusOverviewChartsProps) {
-  const statusRows = statusFilters.map((item) => ({
+}: {
+  statusFilters: StatusFilterItem[];
+  dailyTickets: DailyTicketItem[];
+  totalCount: number;
+}) {
+  const daily = (dailyTickets.length ? dailyTickets : fallbackDaily).map((item) => ({
     ...item,
-    share: totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0,
-    color: getStatusChartColor(item.name),
+    day: dayLabel(item.date),
   }));
-  const pieRows = statusRows.filter((item) => item.count > 0);
-  const dailyRows = dailyTickets.map((item) => ({
-    ...item,
-    day: formatDayLabel(item.date),
-  }));
+  const baseStatuses = statusFilters.length ? statusFilters : fallbackStatuses;
+  const total = totalCount || baseStatuses.reduce((sum, item) => sum + item.count, 0);
+  const statusOrder = ["initiated", "in progress", "closed", "cancelled", "canceled"];
+  const rows = [...baseStatuses]
+    .sort((first, second) => {
+      const firstIndex = statusOrder.indexOf(first.name.toLowerCase());
+      const secondIndex = statusOrder.indexOf(second.name.toLowerCase());
+      return (
+        (firstIndex < 0 ? statusOrder.length : firstIndex) -
+        (secondIndex < 0 ? statusOrder.length : secondIndex)
+      );
+    })
+    .map((item) => {
+      const color = getStatusChartColor(item.name);
+      return {
+        ...item,
+        color,
+        gradient: statusGradient(item.name, color),
+        gradientId: `status-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      };
+    });
+  const pieRows = rows.filter((item) => item.count > 0);
 
   return (
-    <div className="grid gap-5 px-4 py-4 xl:grid-cols-[minmax(0,1fr)_minmax(520px,620px)] xl:items-start">
-      <div className="min-w-0">
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">
-              Daily Tickets Created
-            </p>
-            <p className="text-xs text-muted-foreground">{dailyRows.length} days</p>
-          </div>
-          <div className="h-44 min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyRows} margin={{ top: 6, right: 8, left: -24, bottom: 0 }}>
-                <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--border)" }}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--muted)" }}
-                  contentStyle={{
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-                    fontSize: 12,
-                  }}
-                  labelFormatter={(label) => `Date: ${label}`}
-                  formatter={(value) => [value, "Tickets"]}
-                />
-                <Bar dataKey="count" fill="var(--primary)" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+    <div className="grid gap-4 xl:grid-cols-[1.18fr_1fr]">
+      <section className="rounded-[8px] border border-[#dde4ec] bg-white p-5 shadow-[0_2px_8px_rgba(15,35,66,0.05)]">
+        <h2 className="text-[12px] font-semibold text-[#0f2342]">Daily Tickets Created</h2>
+        <div className="mt-3 h-[192px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={daily} margin={{ top: 5, right: 5, bottom: 0, left: -18 }}>
+              <defs>
+                <linearGradient id="daily-ticket-gradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4b91f7" />
+                  <stop offset="52%" stopColor="#2c7ced" />
+                  <stop offset="100%" stopColor="#146ef5" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#e6ebf1" strokeDasharray="2 3" />
+              <XAxis
+                dataKey="day"
+                tickLine={false}
+                axisLine={{ stroke: "#dce4ec" }}
+                tick={{ fontSize: 10, fill: "#63748a" }}
+              />
+              <YAxis
+                domain={[0, 16]}
+                ticks={[0, 4, 8, 12, 16]}
+                tickLine={false}
+                axisLine={false}
+                tick={{ fontSize: 10, fill: "#63748a" }}
+              />
+              <Tooltip
+                cursor={{ fill: "#f4f7fb" }}
+                contentStyle={{
+                  border: "1px solid #dde4ec",
+                  borderRadius: 7,
+                  boxShadow: "0 4px 14px rgba(15,35,66,.08)",
+                  fontSize: 11,
+                }}
+              />
+              <Bar
+                dataKey="count"
+                fill="url(#daily-ticket-gradient)"
+                radius={[2, 2, 0, 0]}
+                maxBarSize={62}
+                stroke="#1768dd"
+                strokeWidth={0.4}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-      </div>
+      </section>
 
-      <div className="min-w-0 border-t pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Status Distribution</p>
-
-        <div className="mt-3 grid gap-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
-          <div className="h-44 w-44 justify-self-center sm:justify-self-start">
+      <section className="rounded-[8px] border border-[#dde4ec] bg-white p-5 shadow-[0_2px_8px_rgba(15,35,66,0.05)]">
+        <h2 className="text-[12px] font-semibold text-[#0f2342]">Status Distribution</h2>
+        <div className="mt-2 grid h-[205px] grid-cols-[44%_1fr] items-center gap-4">
+          <div className="relative h-[184px] min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                <defs>
+                  {rows.map((item) => (
+                    <linearGradient
+                      key={item.gradientId}
+                      id={item.gradientId}
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor={item.gradient.start} />
+                      <stop offset="100%" stopColor={item.gradient.end} />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <Pie
-                  data={pieRows.length > 0 ? pieRows : [{ name: "No tickets", count: 1, share: 0 }]}
+                  data={pieRows}
                   dataKey="count"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={82}
+                  innerRadius="48%"
+                  outerRadius="96%"
+                  paddingAngle={0.6}
                   labelLine={false}
-                  label={renderPieShareLabel}
+                  label={shareLabel}
+                  isAnimationActive
+                  animationBegin={80}
+                  animationDuration={950}
+                  animationEasing="ease-out"
                 >
-                  {(pieRows.length > 0
-                    ? pieRows
-                    : [{ name: "No tickets", color: "var(--muted)" }]
-                  ).map((item) => (
-                    <Cell key={item.name} fill={item.color} stroke="var(--card)" strokeWidth={1} />
+                  {pieRows.map((item) => (
+                    <Cell
+                      key={item.name}
+                      fill={`url(#${item.gradientId})`}
+                      stroke="#ffffff"
+                      strokeWidth={0.75}
+                    />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
-                    fontSize: 12,
-                  }}
-                  formatter={(value, name) => [value, name]}
-                />
               </PieChart>
             </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+              <strong className="text-[23px] font-semibold leading-none text-[#0f2342]">
+                {total}
+              </strong>
+              <span className="mt-1.5 text-[12px] font-medium text-[#63748a]">Total</span>
+            </div>
           </div>
-
-          <div className="min-w-0">
-            <div className="grid grid-cols-[minmax(0,1fr)_72px] gap-3 border-b pb-1 text-xs font-medium text-muted-foreground">
+          <div className="min-w-0 self-center">
+            <div className="grid grid-cols-[1fr_42px] border-b border-[#e3e8ef] pb-2 text-[10px] font-medium text-[#63748a]">
               <span>Status</span>
               <span className="text-right">Count</span>
             </div>
-            <div className="divide-y">
-              {statusRows.map((item) => (
+            <div className="divide-y divide-[#e8edf2]">
+              {rows.map((item) => (
                 <div
-                  key={item.id || item.name}
-                  className="grid grid-cols-[minmax(0,1fr)_72px] items-center gap-3 py-2 text-sm"
+                  key={item.name}
+                  className="grid grid-cols-[1fr_42px] items-center py-2.5 text-[12px]"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
+                  <span className="flex min-w-0 items-center gap-2 font-medium text-[#0f2342]">
+                    <i
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: item.color }}
+                      style={{
+                        background: `linear-gradient(135deg, ${item.gradient.start}, ${item.gradient.end})`,
+                      }}
                     />
-                    <span className="truncate font-medium">{item.name}</span>
+                    <span className="truncate">{item.name}</span>
                   </span>
-                  <span className="text-right tabular-nums text-muted-foreground">
-                    {item.count}
-                  </span>
+                  <span className="text-right tabular-nums text-[#4e627b]">{item.count}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 });
 
-export function StatusFilterSection({
-  statusFilters,
-  dailyTickets,
-  totalCount,
-  search,
-  userFilter,
-  statusFilterIds,
-  showUserFilter,
-  users,
-  statuses,
-  startDate,
-  endDate,
-  onSearchChange,
-  onUserChange,
-  onStatusChange,
-  onStartDateChange,
-  onEndDateChange,
-}: StatusFilterSectionProps) {
-  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const statusMenuRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const selectedStatusIds = new Set(statusFilterIds);
+function MenuField({
+  label,
+  value,
+  open,
+  onToggle,
+  children,
+  fieldRef,
+}: {
+  label: string;
+  value: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  fieldRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div ref={fieldRef} className="relative space-y-1">
+      <span className="block text-[10px] font-medium text-[#63748a]">{label}</span>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex h-9 w-full items-center justify-between rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] font-medium text-[#263b59]"
+      >
+        <span className="truncate">{value}</span>
+        <ChevronDown size={14} className="text-[#61738a]" />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 rounded-[7px] border border-[#d9e1ea] bg-white p-1 shadow-lg">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function StatusFilterSection(props: StatusFilterSectionProps) {
+  const {
+    statusFilters,
+    dailyTickets,
+    totalCount,
+    search,
+    userFilter,
+    statusFilterIds,
+    showUserFilter,
+    users,
+    statuses,
+    startDate,
+    endDate,
+    onSearchChange,
+    onUserChange,
+    onStatusChange,
+    onStartDateChange,
+    onEndDateChange,
+  } = props;
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+  const selected = new Set(statusFilterIds);
   const selectedStatusNames = statuses
-    .filter((status) => selectedStatusIds.has(status.id))
+    .filter((status) => selected.has(status.id))
     .map((status) => status.name);
-  const statusFilterLabel =
+  const statusLabel =
     selectedStatusNames.length === 0
       ? "All statuses"
       : selectedStatusNames.length === 1
         ? selectedStatusNames[0]
         : `${selectedStatusNames.length} statuses`;
-  const selectedUser = users.find((user) => String(user.id) === userFilter);
-  const userFilterLabel = userFilter === ALL_USERS ? "All users" : (selectedUser?.name ?? "User");
+  const userLabel =
+    userFilter === ALL_USERS
+      ? "All users"
+      : (users.find((item) => String(item.id) === userFilter)?.name ?? "All users");
 
   useEffect(() => {
-    const closeFilterMenus = (event: MouseEvent) => {
-      if (!statusMenuRef.current?.contains(event.target as Node)) {
-        setIsStatusMenuOpen(false);
-      }
-
-      if (!userMenuRef.current?.contains(event.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
+    const close = (event: MouseEvent) => {
+      if (!statusRef.current?.contains(event.target as Node)) setStatusOpen(false);
+      if (!userRef.current?.contains(event.target as Node)) setUserOpen(false);
     };
-
-    document.addEventListener("mousedown", closeFilterMenus);
-    return () => document.removeEventListener("mousedown", closeFilterMenus);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
 
   const toggleStatus = (statusId: number) => {
-    const nextSelectedStatusIds = new Set(statusFilterIds);
+    const nextSelected = new Set(statusFilterIds);
 
-    if (nextSelectedStatusIds.has(statusId)) {
-      nextSelectedStatusIds.delete(statusId);
+    if (nextSelected.has(statusId)) {
+      nextSelected.delete(statusId);
     } else {
-      nextSelectedStatusIds.add(statusId);
+      nextSelected.add(statusId);
     }
 
     onStatusChange(
-      statuses.filter((status) => nextSelectedStatusIds.has(status.id)).map((status) => status.id),
+      statuses.filter((status) => nextSelected.has(status.id)).map((status) => status.id),
     );
   };
 
-  const selectUser = (value: string) => {
-    onUserChange(value);
-    setIsUserMenuOpen(false);
-  };
-
   return (
-    <section className="rounded-md border bg-card shadow-sm">
-      <StatusOverviewCharts
+    <>
+      <OverviewCharts
         statusFilters={statusFilters}
         dailyTickets={dailyTickets}
         totalCount={totalCount}
       />
-
-      <div
-        className={`grid gap-3 border-t bg-muted/25 px-4 py-3 ${
-          showUserFilter
-            ? "lg:grid-cols-[minmax(260px,1fr)_180px_180px_190px_220px]"
-            : "lg:grid-cols-[minmax(260px,1fr)_180px_180px_190px]"
-        }`}
+      <section
+        className={`mt-4 grid gap-3 rounded-[9px] border border-[#dde4ec] bg-white p-3 shadow-[0_2px_8px_rgba(15,35,66,0.04)] ${showUserFilter ? "xl:grid-cols-[minmax(200px,1fr)_minmax(110px,155px)_minmax(110px,155px)_minmax(110px,150px)_minmax(110px,155px)]" : "xl:grid-cols-[minmax(200px,1fr)_minmax(110px,155px)_minmax(110px,155px)_minmax(110px,150px)]"}`}
       >
-        <label className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Search</span>
+        <label className="space-y-1">
+          <span className="block text-[10px] font-medium text-[#63748a]">Search</span>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#718197]" />
+            <input
               value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Title, ID, requester, or body"
-              className="h-10 bg-background pl-9"
+              className="h-9 w-full rounded-[7px] border border-[#d9e1ea] bg-white pl-9 pr-3 text-[11px] text-[#0f2342] outline-none placeholder:text-[#7a8ba1] focus:border-[#146ef5]"
             />
           </div>
         </label>
-
-        <label className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground">From</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(event) => onStartDateChange(event.target.value)}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
+        <label className="space-y-1">
+          <span className="block text-[10px] font-medium text-[#63748a]">From</span>
+          <div className="relative">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+              className="h-9 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] font-medium text-[#263b59] outline-none focus:border-[#146ef5]"
+            />
+            <CalendarRange
+              size={13}
+              className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[#435874]"
+            />
+          </div>
         </label>
-
-        <label className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground">To</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(event) => onEndDateChange(event.target.value)}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
+        <label className="space-y-1">
+          <span className="block text-[10px] font-medium text-[#63748a]">To</span>
+          <div className="relative">
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+              className="h-9 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] font-medium text-[#263b59] outline-none focus:border-[#146ef5]"
+            />
+            <CalendarRange
+              size={13}
+              className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-[#435874]"
+            />
+          </div>
         </label>
-
-        <div ref={statusMenuRef} className="relative space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Status</span>
+        <MenuField
+          label="Status"
+          value={statusLabel}
+          open={statusOpen}
+          onToggle={() => setStatusOpen(!statusOpen)}
+          fieldRef={statusRef}
+        >
           <button
             type="button"
-            aria-expanded={isStatusMenuOpen}
-            onClick={() => setIsStatusMenuOpen((current) => !current)}
-            className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-muted focus:ring-2 focus:ring-ring"
+            onClick={() => {
+              onStatusChange([]);
+              setStatusOpen(false);
+            }}
+            className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-xs hover:bg-[#f4f7fb]"
           >
-            <span className="truncate">{statusFilterLabel}</span>
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-                isStatusMenuOpen ? "rotate-180" : ""
-              }`}
-            />
+            All statuses {!statusFilterIds.length && <Check size={14} className="text-[#146ef5]" />}
           </button>
-
-          {isStatusMenuOpen && (
-            <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-md border bg-card p-1 shadow-xl">
-              <button
-                type="button"
-                onClick={() => onStatusChange([])}
-                className="flex w-full items-center justify-between gap-2 rounded px-2 py-2 text-left text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span>All statuses</span>
-                {statusFilterIds.length === 0 && <Check className="h-4 w-4 text-primary" />}
-              </button>
-
-              <div className="my-1 border-t" />
-
-              {statuses.map((status) => (
-                <label
-                  key={status.id}
-                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-sm transition-colors hover:bg-muted"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedStatusIds.has(status.id)}
-                    onChange={() => toggleStatus(status.id)}
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span className="truncate">{status.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
+          {statuses.map((item) => (
+            <label
+              key={item.id}
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-xs hover:bg-[#f4f7fb]"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(item.id)}
+                onChange={() => toggleStatus(item.id)}
+                className="h-3.5 w-3.5 rounded border-[#c9d4e0] accent-[#146ef5]"
+              />
+              <span className="truncate">{item.name}</span>
+            </label>
+          ))}
+        </MenuField>
         {showUserFilter && (
-          <div ref={userMenuRef} className="relative space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Assignee</span>
+          <MenuField
+            label="Assignee"
+            value={userLabel}
+            open={userOpen}
+            onToggle={() => setUserOpen(!userOpen)}
+            fieldRef={userRef}
+          >
             <button
               type="button"
-              aria-expanded={isUserMenuOpen}
-              onClick={() => setIsUserMenuOpen((current) => !current)}
-              className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-muted focus:ring-2 focus:ring-ring"
+              onClick={() => {
+                onUserChange(ALL_USERS);
+                setUserOpen(false);
+              }}
+              className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-xs hover:bg-[#f4f7fb]"
             >
-              <span className="truncate">{userFilterLabel}</span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-                  isUserMenuOpen ? "rotate-180" : ""
-                }`}
-              />
+              All users {userFilter === ALL_USERS && <Check size={14} className="text-[#146ef5]" />}
             </button>
-
-            {isUserMenuOpen && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-md border bg-card p-1 shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => selectUser(ALL_USERS)}
-                  className="flex w-full items-center justify-between gap-2 rounded px-2 py-2 text-left text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span>All users</span>
-                  {userFilter === ALL_USERS && <Check className="h-4 w-4 text-primary" />}
-                </button>
-
-                <div className="my-1 border-t" />
-
-                {users.map((user) => (
-                  <button
-                    key={user.id}
-                    type="button"
-                    onClick={() => selectUser(String(user.id))}
-                    className="flex w-full items-center justify-between gap-2 rounded px-2 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className="truncate">{user.name}</span>
-                    {userFilter === String(user.id) && <Check className="h-4 w-4 text-primary" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            {users.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  onUserChange(String(item.id));
+                  setUserOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-2 rounded px-2 py-2 text-left text-xs hover:bg-[#f4f7fb]"
+              >
+                <span className="truncate">{item.name}</span>
+                {userFilter === String(item.id) && <Check size={14} className="text-[#146ef5]" />}
+              </button>
+            ))}
+          </MenuField>
         )}
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

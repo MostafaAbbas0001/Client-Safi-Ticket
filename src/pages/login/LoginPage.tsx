@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { CheckCircle2, KeyRound, Mail } from "lucide-react";
+import { BadgeCheck, KeyRound, LogIn, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { safiLogoUrl } from "@/assets";
 import { Button } from "@/components/ui/button";
@@ -247,12 +247,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
               {resetMessage && (
                 <div className="flex gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>{resetMessage}</p>
                 </div>
               )}
 
               <Button type="submit" className="h-10 w-full" disabled={isSigningIn}>
+                <LogIn className="h-4 w-4" />
                 {isSigningIn ? "Signing in..." : "Sign in"}
               </Button>
             </div>

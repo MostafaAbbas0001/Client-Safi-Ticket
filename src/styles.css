@@ -127,14 +127,49 @@
     margin: 0;
     background-color: var(--background);
     color: var(--foreground);
-    font-family:
-      Inter,
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
+    font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #9aabbd #eef2f6;
+  }
+
+  .lucide {
+    stroke-width: 1.7;
+    shape-rendering: geometricPrecision;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: #eef2f6;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    min-height: 36px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: #9aabbd;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #71869e;
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: #146ef5;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: #eef2f6;
   }
 }
 
@@ -142,6 +177,71 @@
   .recharts-wrapper :where(path, rect, sector, g, svg):focus,
   .recharts-wrapper :where(path, rect, sector, g, svg):focus-visible {
     outline: none;
+  }
+
+  .drawer-scroll-region {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .drawer-scroll-region::-webkit-scrollbar {
+    display: none;
+  }
+
+  .conversation-scrollbar {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #8297ad #f1f4f7;
+  }
+
+  .conversation-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .conversation-scrollbar::-webkit-scrollbar-track {
+    border-radius: 8px;
+    background: #f1f4f7;
+  }
+
+  .conversation-scrollbar::-webkit-scrollbar-thumb {
+    min-height: 40px;
+    border: 2px solid #f1f4f7;
+    border-radius: 8px;
+    background: #8297ad;
+  }
+
+  .conversation-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #637b94;
+  }
+
+  .attachment-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #8297ad transparent;
+  }
+
+  .attachment-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .attachment-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .attachment-scrollbar::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: #8297ad;
+    background-clip: content-box;
+  }
+
+  .attachment-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #5e7690;
+  }
+
+  .donut-percentage-label {
+    opacity: 0;
+    animation: donut-percentage-in 520ms cubic-bezier(0.22, 1, 0.36, 1) 620ms forwards;
   }
 
   .email-body-html {
@@ -184,5 +284,22 @@
     font-weight: 600;
     text-decoration: underline;
     text-underline-offset: 2px;
+  }
+}
+
+@keyframes donut-percentage-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .donut-percentage-label {
+    opacity: 1;
+    animation: none;
   }
 }

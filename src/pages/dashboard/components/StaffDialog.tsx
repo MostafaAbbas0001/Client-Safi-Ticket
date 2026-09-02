@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { UserRoundPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +73,10 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add staff user</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <UserRoundPlus className="h-4 w-4 text-[#146ef5]" />
+            Add staff user
+          </DialogTitle>
           <DialogDescription>Create an internal helpdesk account.</DialogDescription>
         </DialogHeader>
 
@@ -118,7 +122,7 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
                 id="staff-role"
                 value={roleId}
                 onChange={(event) => setRoleId(event.target.value)}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                className="h-10 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 py-2 text-sm text-[#102445] outline-none focus:border-[#146ef5] focus:ring-2 focus:ring-[#146ef5]/15 disabled:bg-[#f4f6f8] disabled:opacity-60"
                 disabled={roles.length === 0}
               >
                 <option value="" disabled>
@@ -146,9 +150,11 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
               onClick={() => onOpenChange(false)}
               className="w-full"
             >
+              <X className="h-4 w-4" />
               Cancel
             </Button>
             <Button type="submit" disabled={isCreating} className="w-full">
+              <UserRoundPlus className="h-4 w-4" />
               {isCreating ? "Creating..." : "Create staff user"}
             </Button>
           </DialogFooter>

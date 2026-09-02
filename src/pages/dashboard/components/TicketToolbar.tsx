@@ -30,9 +30,7 @@ export function TicketToolbar({
     <section className="rounded-lg border bg-card/95 p-4 shadow-[0_16px_45px_rgba(15,15,15,0.05)]">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold uppercase text-muted-foreground">
-            Work queue
-          </p>
+          <p className="text-sm font-semibold uppercase text-muted-foreground">Work queue</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-normal">Tickets</h2>
         </div>
       </div>
