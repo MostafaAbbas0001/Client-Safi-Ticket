@@ -5,8 +5,13 @@ import { safiLogoUrl } from "@/assets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api-client";
-import { authService, type AuthSession } from "@/lib/auth-service";
+import {
+  useForgotPasswordMutation,
+  useLoginMutation,
+  useResetPasswordMutation,
+} from "@/queries/auth.queries";
+import { ApiError } from "@/services/api-client";
+import type { AuthSession } from "@/services/auth.service";
 
 interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
@@ -19,11 +24,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetStarted, setResetStarted] = useState(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isSendingResetCode, setIsSendingResetCode] = useState(false);
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const loginMutation = useLoginMutation();
+  const forgotPasswordMutation = useForgotPasswordMutation();
+  const resetPasswordMutation = useResetPasswordMutation();
 
   const getErrorMessage = (unknownError: unknown, fallback: string) => {
     if (unknownError instanceof ApiError) {
@@ -48,8 +53,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     try {
-      setIsSigningIn(true);
-      const session = await authService.login({
+      const session = await loginMutation.mutateAsync({
         email: email.trim(),
         password,
       });
@@ -58,8 +62,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       onLogin(session);
     } catch (unknownError) {
       setError(getErrorMessage(unknownError, "Invalid email or password."));
-    } finally {
-      setIsSigningIn(false);
     }
   };
 
@@ -73,16 +75,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     try {
-      setIsSendingResetCode(true);
-      const message = await authService.forgotPassword(email.trim());
+      const message = await forgotPasswordMutation.mutateAsync(email.trim());
 
       setResetStarted(true);
       setResetMessage(message);
       toast.success("Reset code sent");
     } catch (unknownError) {
       setError(getErrorMessage(unknownError, "Failed to send reset code."));
-    } finally {
-      setIsSendingResetCode(false);
     }
   };
 
@@ -106,8 +105,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     try {
-      setIsResettingPassword(true);
-      const message = await authService.resetPassword(email.trim(), resetCode.trim(), newPassword);
+      const message = await resetPasswordMutation.mutateAsync({
+        email: email.trim(),
+        token: resetCode.trim(),
+        newPassword,
+      });
 
       setPassword("");
       setResetCode("");
@@ -118,17 +120,21 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       toast.success("Password reset completed");
     } catch (unknownError) {
       setError(getErrorMessage(unknownError, "Failed to reset password."));
-    } finally {
-      setIsResettingPassword(false);
     }
   };
+
+  const isBusy =
+    loginMutation.isPending || forgotPasswordMutation.isPending || resetPasswordMutation.isPending;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
-        <div className="w-full max-w-[440px]">
-          <form onSubmit={onSubmit} className="rounded-md border bg-card p-5 shadow-sm sm:p-6">
-            <div className="mb-6 flex justify-center border-b pb-5">
+        <div className="animate-rise w-full max-w-[440px]">
+          <form
+            onSubmit={onSubmit}
+            className="rounded-card border border-line bg-card p-5 shadow-card sm:p-6"
+          >
+            <div className="mb-6 flex justify-center border-b border-line-soft pb-5">
               <img
                 src={safiLogoUrl}
                 alt="Safi Ticketing System"
@@ -146,6 +152,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@company.com"
                   autoComplete="username"
+                  disabled={isBusy}
                   className="h-10"
                 />
               </div>
@@ -159,11 +166,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Password"
                   autoComplete="current-password"
+                  disabled={isBusy}
                   className="h-10"
                 />
               </div>
 
-              <div className="rounded-md border bg-muted/40 p-3">
+              <div className="rounded-field border border-line-soft bg-muted/40 p-3">
                 <div className="flex gap-3">
                   <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
@@ -179,14 +187,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                         variant="outline"
                         size="sm"
                         onClick={onSendResetCode}
-                        disabled={isSendingResetCode}
+                        loading={forgotPasswordMutation.isPending}
+                        loadingText="Sending..."
+                        disabled={isBusy}
                       >
-                        {isSendingResetCode ? "Sending..." : resetStarted ? "Resend" : "Send code"}
+                        {resetStarted ? "Resend" : "Send code"}
                       </Button>
                     </div>
 
                     {resetStarted && (
-                      <div className="mt-4 space-y-3 border-t pt-4">
+                      <div className="animate-rise mt-4 space-y-3 border-t border-line-soft pt-4">
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2 sm:col-span-2">
                             <Label htmlFor="reset-code">Reset code</Label>
@@ -197,6 +207,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                               placeholder="123456"
                               inputMode="numeric"
                               autoComplete="one-time-code"
+                              disabled={isBusy}
                             />
                           </div>
                           <div className="space-y-2">
@@ -208,6 +219,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                               onChange={(event) => setNewPassword(event.target.value)}
                               placeholder="New password"
                               autoComplete="new-password"
+                              disabled={isBusy}
                             />
                           </div>
                           <div className="space-y-2">
@@ -219,6 +231,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                               onChange={(event) => setConfirmPassword(event.target.value)}
                               placeholder="Confirm password"
                               autoComplete="new-password"
+                              disabled={isBusy}
                             />
                           </div>
                         </div>
@@ -228,10 +241,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                           variant="outline"
                           className="w-full"
                           onClick={onResetPassword}
-                          disabled={isResettingPassword}
+                          loading={resetPasswordMutation.isPending}
+                          loadingText="Resetting password..."
+                          disabled={isBusy}
                         >
-                          <KeyRound className="mr-2 h-4 w-4" />
-                          {isResettingPassword ? "Resetting..." : "Reset password"}
+                          <KeyRound className="h-4 w-4" />
+                          Reset password
                         </Button>
                       </div>
                     )}
@@ -240,21 +255,34 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               </div>
 
               {error && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p
+                  role="alert"
+                  className="animate-rise rounded-field bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                >
                   {error}
                 </p>
               )}
 
               {resetMessage && (
-                <div className="flex gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
+                <div
+                  role="status"
+                  className="animate-rise flex gap-2 rounded-field border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground"
+                >
                   <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>{resetMessage}</p>
                 </div>
               )}
 
-              <Button type="submit" className="h-10 w-full" disabled={isSigningIn}>
+              <Button
+                type="submit"
+                size="lg"
+                className="h-10 w-full"
+                loading={loginMutation.isPending}
+                loadingText="Signing in..."
+                disabled={isBusy}
+              >
                 <LogIn className="h-4 w-4" />
-                {isSigningIn ? "Signing in..." : "Sign in"}
+                Sign in
               </Button>
             </div>
           </form>

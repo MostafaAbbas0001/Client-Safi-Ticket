@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getApiUrl, getAuthorizationHeaders } from "@/lib/api-client";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +26,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Sheet,
   SheetContent,
@@ -43,7 +45,7 @@ import type {
   TicketComment,
   User,
   UserLookupItem,
-} from "../dashboard-data";
+} from "@/models/ticket";
 import { formatAttachmentSize, formatDate } from "../dashboard-utils";
 import { EmailBody } from "./EmailBody";
 import { StatusBadge } from "./TicketBadges";
@@ -54,12 +56,15 @@ interface TicketDrawerProps {
   users: UserLookupItem[];
   comments: TicketComment[];
   attachments: TicketAttachment[];
+  isCommentsLoading: boolean;
+  isAttachmentsLoading: boolean;
   onClose: () => void;
   onAssign: (ticket: Ticket) => Promise<void>;
   onCancel: (ticketId: number) => Promise<void>;
   onCloseTicket: (ticketId: number, body: string) => Promise<void>;
   onAddComment: (comment: Omit<TicketComment, "id" | "createdAt">) => Promise<void>;
   onReply: (reply: Omit<TicketComment, "id" | "createdAt" | "isInternalNote">) => Promise<void>;
+  onDownloadAttachment: (attachment: TicketAttachment) => Promise<void>;
 }
 
 function DetailItem({
@@ -81,6 +86,42 @@ function DetailItem({
         {value}
       </div>
     </div>
+  );
+}
+
+/** Placeholder that matches a comment card's shape while replies load. */
+function CommentSkeleton() {
+  return (
+    <div className="my-2 rounded-[6px] border border-[#dfe5ec] border-l-[3px] border-l-line px-3 py-3">
+      <div className="mb-3 flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-4 w-20 rounded-[5px]" />
+          </div>
+          <Skeleton className="h-2.5 w-36" />
+        </div>
+        <Skeleton className="h-2.5 w-24" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-2.5 w-full" />
+        <Skeleton className="h-2.5 w-[92%]" />
+        <Skeleton className="h-2.5 w-[60%]" />
+      </div>
+    </div>
+  );
+}
+
+function AttachmentSkeleton() {
+  return (
+    <ul className="divide-y divide-[#e2e7ee] rounded-field border border-[#dfe5ec]">
+      {Array.from({ length: 2 }, (_, index) => (
+        <li key={index} className="flex min-h-11 items-center justify-between gap-2 px-3 py-2">
+          <Skeleton className="h-2.5 w-[60%]" />
+          <Skeleton className="h-3 w-3 rounded-full" />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -114,12 +155,15 @@ export function TicketDrawer({
   users,
   comments,
   attachments,
+  isCommentsLoading,
+  isAttachmentsLoading,
   onClose,
   onAssign,
   onCancel,
   onCloseTicket,
   onAddComment,
   onReply,
+  onDownloadAttachment,
 }: TicketDrawerProps) {
   const [draftUserId, setDraftUserId] = useState("");
   const [message, setMessage] = useState("");
@@ -132,6 +176,7 @@ export function TicketDrawer({
   const [isCancelling, setIsCancelling] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window === "undefined" ? false : window.matchMedia("(min-width: 1024px)").matches,
   );
@@ -276,43 +321,26 @@ export function TicketDrawer({
   };
 
   const downloadAttachment = async (attachment: TicketAttachment) => {
-    const downloadPath =
-      attachment.downloadUrl?.trim() || `/api/ticket/attachments/${attachment.id}/file`;
-    const downloadUrl = /^https?:\/\//i.test(downloadPath) ? downloadPath : getApiUrl(downloadPath);
+    if (downloadingAttachmentId !== null) return;
 
     try {
-      const response = await fetch(downloadUrl, {
-        headers: getAuthorizationHeaders() as HeadersInit,
-      });
-
-      if (!response.ok) {
-        const responseMessage = await response.text();
-        throw new Error(responseMessage || `Attachment download failed (${response.status}).`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = attachment.fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      setDownloadingAttachmentId(attachment.id);
+      await onDownloadAttachment(attachment);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to download attachment");
+    } finally {
+      setDownloadingAttachmentId(null);
     }
   };
 
   return (
     <>
-      <article className="hidden h-[calc(100vh-32px)] w-full animate-in flex-col fade-in-0 duration-300 lg:flex">
-        <header className="shrink-0 border-b border-[#dfe5ec] bg-background px-4 py-3">
+      <article className="animate-in fade-in-0 hidden h-[calc(100vh-32px)] w-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card duration-300 lg:flex">
+        <header className="shrink-0 border-b border-[#dfe5ec] bg-surface px-4 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="mb-3 inline-flex items-center gap-2 text-[11px] font-semibold text-[#526981] transition-colors hover:text-[#146ef5] cursor-pointer"
+            className="mb-3 inline-flex cursor-pointer items-center gap-2 rounded-[4px] text-[11px] font-semibold text-[#526981] transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ring"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to tickets
@@ -333,7 +361,7 @@ export function TicketDrawer({
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 bg-background lg:grid-cols-[minmax(0,1fr)_288px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-h-0 flex-1 bg-surface lg:grid-cols-[minmax(0,1fr)_288px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-h-0 min-w-0 flex-col px-4 py-3">
             <section className="flex min-h-0 flex-1 flex-col">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e5eaf0] pb-3">
@@ -341,15 +369,30 @@ export function TicketDrawer({
                   <MessagesSquare className="h-4 w-4 text-[#536a85]" />
                   Conversation
                 </h2>
-                <span className="rounded-[5px] bg-[#f0f3f7] px-2 py-1 text-[9px] font-semibold text-[#63748a]">
-                  {comments.length} {comments.length === 1 ? "reply" : "replies"}
-                </span>
+                {isCommentsLoading ? (
+                  <Skeleton className="h-[22px] w-16 rounded-[5px]" />
+                ) : (
+                  <span className="rounded-[5px] bg-[#f0f3f7] px-2 py-1 text-[9px] font-semibold text-ink-muted">
+                    {comments.length} {comments.length === 1 ? "reply" : "replies"}
+                  </span>
+                )}
               </div>
-              <div className="conversation-scrollbar min-h-0 flex-1 overflow-y-auto pr-2">
-                {comments.length === 0 ? (
-                  <div className="py-10 text-center text-[11px] text-[#718198]">
-                    No replies have been added yet.
-                  </div>
+              <div
+                className="conversation-scrollbar min-h-0 flex-1 overflow-y-auto pr-2"
+                aria-busy={isCommentsLoading}
+              >
+                {isCommentsLoading ? (
+                  <>
+                    <span className="sr-only">Loading conversation</span>
+                    <CommentSkeleton />
+                    <CommentSkeleton />
+                  </>
+                ) : comments.length === 0 ? (
+                  <EmptyState
+                    icon={<MessagesSquare />}
+                    title="No replies yet"
+                    description="Send an email reply to the requester, or leave an internal note for your team."
+                  />
                 ) : (
                   comments.map((comment) => {
                     const presentation = getCommentPresentation(comment);
@@ -411,24 +454,28 @@ export function TicketDrawer({
                   type="button"
                   variant="outline"
                   onClick={addConversationMessage}
-                  disabled={!message.trim() || isSendingMessage || isSendingReply}
+                  loading={isSendingMessage}
+                  loadingText="Adding note..."
+                  disabled={!message.trim() || isSendingReply}
                 >
                   <LockKeyhole className="h-4 w-4" />
-                  {isSendingMessage ? "Adding..." : "Add internal note"}
+                  Add internal note
                 </Button>
                 <Button
                   type="button"
                   onClick={sendEmailReply}
-                  disabled={!message.trim() || isSendingMessage || isSendingReply}
+                  loading={isSendingReply}
+                  loadingText="Sending..."
+                  disabled={!message.trim() || isSendingMessage}
                 >
                   <SendHorizontal className="h-4 w-4" />
-                  {isSendingReply ? "Sending..." : "Send reply"}
+                  Send reply
                 </Button>
               </div>
             </section>
           </div>
 
-          <aside className="h-full overflow-hidden border-l border-[#dfe5ec] bg-background px-4 py-3">
+          <aside className="h-full overflow-y-auto border-l border-[#dfe5ec] bg-surface-muted px-4 py-3">
             <section className="border-b border-[#dfe5ec] pb-4">
               <h2 className="text-[12px] font-semibold text-[#102445]">Ticket details</h2>
               <dl className="mt-4 space-y-4">
@@ -460,22 +507,35 @@ export function TicketDrawer({
                     <UserRoundCheck className="h-4 w-4 text-[#536a85]" />
                     Change assignee
                   </Label>
-                  <select
-                    id="desktop-ticket-assignee"
-                    value={draftUserId}
-                    onChange={(event) => void assignTicket(event.target.value)}
-                    disabled={isAssigning || isTerminal}
-                    className="mt-2 h-10 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] text-[#263b59] outline-none focus:ring-2 focus:ring-[#146ef5]"
-                  >
-                    <option value="" disabled>
-                      {isAssigning ? "Assigning..." : "Select assignee"}
-                    </option>
-                    {users.map((staffUser) => (
-                      <option key={staffUser.id} value={staffUser.id}>
-                        {staffUser.name}
+                  <div className="relative mt-2">
+                    <select
+                      id="desktop-ticket-assignee"
+                      value={draftUserId}
+                      onChange={(event) => void assignTicket(event.target.value)}
+                      disabled={isAssigning || isTerminal}
+                      aria-busy={isAssigning}
+                      className="h-10 w-full cursor-pointer rounded-field border border-[#d9e1ea] bg-surface px-3 pr-9 text-[11px] text-[#263b59] outline-none transition-[border-color,box-shadow] hover:border-[#c5d1dd] focus:border-brand focus:ring-2 focus:ring-brand-ring disabled:cursor-not-allowed disabled:bg-[#f4f6f8] disabled:opacity-70"
+                    >
+                      <option value="" disabled>
+                        Select assignee
                       </option>
-                    ))}
-                  </select>
+                      {users.map((staffUser) => (
+                        <option key={staffUser.id} value={staffUser.id}>
+                          {staffUser.name}
+                        </option>
+                      ))}
+                    </select>
+                    {isAssigning && (
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-brand">
+                        <Spinner className="h-3.5 w-3.5" label="Assigning ticket" />
+                      </span>
+                    )}
+                  </div>
+                  {isAssigning && (
+                    <p aria-live="polite" className="mt-1.5 text-[10px] text-ink-muted">
+                      Assigning...
+                    </p>
+                  )}
                 </div>
               )}
             </section>
@@ -491,36 +551,55 @@ export function TicketDrawer({
                 <span className="flex items-center gap-2 text-[12px] font-semibold text-[#102445]">
                   <Paperclip className="h-4 w-4 text-[#536a85]" />
                   Attachments
-                  <span className="rounded-[4px] bg-[#e9eef4] px-2 py-0.5 text-[9px] text-[#63748a]">
-                    {attachments.length}
-                  </span>
+                  {isAttachmentsLoading ? (
+                    <Skeleton className="h-4 w-6 rounded-[4px]" />
+                  ) : (
+                    <span className="rounded-[4px] bg-[#e9eef4] px-2 py-0.5 text-[9px] text-ink-muted">
+                      {attachments.length}
+                    </span>
+                  )}
                 </span>
                 <ChevronDown
-                  className={`h-4 w-4 text-[#63748a] transition-transform ${isAttachmentsOpen ? "rotate-180" : ""}`}
+                  className={`h-4 w-4 text-ink-muted transition-transform ${isAttachmentsOpen ? "rotate-180" : ""}`}
                 />
               </button>
               {isAttachmentsOpen && (
                 <div id="desktop-ticket-attachments" className="mt-3">
-                  {attachments.length === 0 ? (
-                    <p className="rounded-[7px] border border-dashed border-[#d9e1ea] p-3 text-[10px] text-[#718198]">
+                  {isAttachmentsLoading ? (
+                    <AttachmentSkeleton />
+                  ) : attachments.length === 0 ? (
+                    <p className="rounded-field border border-dashed border-[#d9e1ea] p-3 text-[10px] text-[#718198]">
                       No attachments.
                     </p>
                   ) : (
-                    <ul className="divide-y divide-[#e2e7ee] rounded-[7px] border border-[#dfe5ec]">
-                      {attachments.map((attachment) => (
-                        <li key={attachment.id}>
-                          <button
-                            type="button"
-                            onClick={() => downloadAttachment(attachment)}
-                            className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-[#f7f9fc]"
-                          >
-                            <span className="min-w-0 truncate text-[10px] font-medium text-[#263b59]">
-                              {attachment.fileName}
-                            </span>
-                            <Download className="h-3.5 w-3.5 shrink-0 text-[#63748a]" />
-                          </button>
-                        </li>
-                      ))}
+                    <ul className="divide-y divide-[#e2e7ee] rounded-field border border-[#dfe5ec]">
+                      {attachments.map((attachment) => {
+                        const isDownloading = downloadingAttachmentId === attachment.id;
+
+                        return (
+                          <li key={attachment.id}>
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachment(attachment)}
+                              disabled={downloadingAttachmentId !== null}
+                              aria-busy={isDownloading}
+                              className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <span className="min-w-0 truncate text-[10px] font-medium text-[#263b59]">
+                                {attachment.fileName}
+                              </span>
+                              {isDownloading ? (
+                                <Spinner
+                                  className="h-3.5 w-3.5 text-brand"
+                                  label={`Downloading ${attachment.fileName}`}
+                                />
+                              ) : (
+                                <Download className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
@@ -532,9 +611,10 @@ export function TicketDrawer({
               <div className="grid gap-2">
                 <Button
                   type="button"
+                  variant="success"
                   onClick={() => setIsCloseDialogOpen(true)}
-                  disabled={isTerminal || isAssigning || isClosing}
-                  className="w-full bg-[#13a66d] text-white hover:bg-[#0e925f]"
+                  disabled={isTerminal || isAssigning || isClosing || isCancelling}
+                  className="w-full"
                 >
                   <CircleCheckBig className="h-4 w-4" />
                   Close Ticket
@@ -544,11 +624,13 @@ export function TicketDrawer({
                     type="button"
                     variant="destructive"
                     onClick={cancelSelectedTicket}
-                    disabled={isCancelling || isTerminal}
-                    className="w-full border border-[#d91f37] bg-[#d91f37] text-white hover:border-[#bd1730] hover:bg-[#bd1730]"
+                    loading={isCancelling}
+                    loadingText="Cancelling..."
+                    disabled={isTerminal || isClosing}
+                    className="w-full"
                   >
                     <CircleX className="h-4 w-4" />
-                    {isCancelling ? "Cancelling..." : "Cancel Ticket"}
+                    Cancel Ticket
                   </Button>
                 )}
               </div>
@@ -611,37 +693,56 @@ export function TicketDrawer({
                 <span className="flex items-center gap-2 text-[12px] font-semibold text-[#102445]">
                   <Paperclip className="h-4 w-4 text-[#536a85]" />
                   Attachments
-                  <span className="rounded-[4px] bg-[#e9eef4] px-2 py-0.5 text-[9px] font-medium text-[#63748a]">
-                    {attachments.length}
-                  </span>
+                  {isAttachmentsLoading ? (
+                    <Skeleton className="h-4 w-6 rounded-[4px]" />
+                  ) : (
+                    <span className="rounded-[4px] bg-[#e9eef4] px-2 py-0.5 text-[9px] font-medium text-ink-muted">
+                      {attachments.length}
+                    </span>
+                  )}
                 </span>
                 <ChevronDown
-                  className={`h-4 w-4 text-[#63748a] transition-transform ${isAttachmentsOpen ? "rotate-180" : ""}`}
+                  className={`h-4 w-4 text-ink-muted transition-transform ${isAttachmentsOpen ? "rotate-180" : ""}`}
                 />
               </button>
               {isAttachmentsOpen && (
                 <div id="ticket-attachments" className="mt-2">
-                  {attachments.length === 0 ? (
-                    <p className="rounded-[7px] border border-dashed border-[#d9e1ea] px-3 py-3 text-[11px] text-[#718198]">
+                  {isAttachmentsLoading ? (
+                    <AttachmentSkeleton />
+                  ) : attachments.length === 0 ? (
+                    <p className="rounded-field border border-dashed border-[#d9e1ea] px-3 py-3 text-[11px] text-[#718198]">
                       No attachments.
                     </p>
                   ) : (
-                    <ul className="attachment-scrollbar max-h-44 divide-y divide-[#e2e7ee] overflow-y-auto rounded-[7px] border border-[#dfe5ec] bg-white">
-                      {attachments.map((attachment) => (
-                        <li key={attachment.id}>
-                          <button
-                            type="button"
-                            onClick={() => downloadAttachment(attachment)}
-                            className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[11px] hover:bg-[#f7f9fc]"
-                          >
-                            <span className="truncate font-medium">{attachment.fileName}</span>
-                            <span className="flex shrink-0 items-center gap-2 text-[10px] text-[#63748a]">
-                              {formatAttachmentSize(attachment.sizeBytes)}
-                              <Download className="h-3.5 w-3.5" />
-                            </span>
-                          </button>
-                        </li>
-                      ))}
+                    <ul className="attachment-scrollbar max-h-44 divide-y divide-[#e2e7ee] overflow-y-auto rounded-field border border-[#dfe5ec] bg-surface">
+                      {attachments.map((attachment) => {
+                        const isDownloading = downloadingAttachmentId === attachment.id;
+
+                        return (
+                          <li key={attachment.id}>
+                            <button
+                              type="button"
+                              onClick={() => downloadAttachment(attachment)}
+                              disabled={downloadingAttachmentId !== null}
+                              aria-busy={isDownloading}
+                              className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[11px] transition-colors hover:bg-surface-muted disabled:opacity-60"
+                            >
+                              <span className="truncate font-medium">{attachment.fileName}</span>
+                              <span className="flex shrink-0 items-center gap-2 text-[10px] text-ink-muted">
+                                {formatAttachmentSize(attachment.sizeBytes)}
+                                {isDownloading ? (
+                                  <Spinner
+                                    className="h-3.5 w-3.5 text-brand"
+                                    label={`Downloading ${attachment.fileName}`}
+                                  />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
+                                )}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
@@ -654,13 +755,27 @@ export function TicketDrawer({
                   <MessagesSquare className="h-4 w-4" />
                   Conversation
                 </Label>
-                <span className="rounded-[4px] bg-[#f0f3f7] px-2 py-1 text-[9px] font-medium text-[#63748a]">
-                  {comments.length} {comments.length === 1 ? "reply" : "replies"}
-                </span>
+                {isCommentsLoading ? (
+                  <Skeleton className="h-[22px] w-16 rounded-[4px]" />
+                ) : (
+                  <span className="rounded-[4px] bg-[#f0f3f7] px-2 py-1 text-[9px] font-medium text-ink-muted">
+                    {comments.length} {comments.length === 1 ? "reply" : "replies"}
+                  </span>
+                )}
               </div>
-              <div className="space-y-2">
-                {comments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No replies yet.</p>
+              <div className="space-y-2" aria-busy={isCommentsLoading}>
+                {isCommentsLoading ? (
+                  <>
+                    <span className="sr-only">Loading conversation</span>
+                    <CommentSkeleton />
+                    <CommentSkeleton />
+                  </>
+                ) : comments.length === 0 ? (
+                  <EmptyState
+                    icon={<MessagesSquare />}
+                    title="No replies yet"
+                    description="Send an email reply to the requester, or leave an internal note for your team."
+                  />
                 ) : (
                   comments.map((comment) => {
                     const presentation = getCommentPresentation(comment);
@@ -724,18 +839,22 @@ export function TicketDrawer({
                   type="button"
                   variant="outline"
                   onClick={addConversationMessage}
-                  disabled={!message.trim() || isSendingMessage || isSendingReply}
+                  loading={isSendingMessage}
+                  loadingText="Adding note..."
+                  disabled={!message.trim() || isSendingReply}
                 >
-                  <LockKeyhole className="mr-2 h-4 w-4" />
-                  {isSendingMessage ? "Adding..." : "Add internal note"}
+                  <LockKeyhole className="h-4 w-4" />
+                  Add internal note
                 </Button>
                 <Button
                   type="button"
                   onClick={sendEmailReply}
-                  disabled={!message.trim() || isSendingMessage || isSendingReply}
+                  loading={isSendingReply}
+                  loadingText="Sending..."
+                  disabled={!message.trim() || isSendingMessage}
                 >
-                  <SendHorizontal className="mr-2 h-4 w-4" />
-                  {isSendingReply ? "Sending..." : "Send reply"}
+                  <SendHorizontal className="h-4 w-4" />
+                  Send reply
                 </Button>
               </div>
             </section>
@@ -751,22 +870,30 @@ export function TicketDrawer({
                     Assignee
                   </Label>
                 </div>
-                <select
-                  id="ticket-assignee"
-                  value={draftUserId}
-                  onChange={(event) => void assignTicket(event.target.value)}
-                  disabled={isAssigning || isTerminal}
-                  className="h-10 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-sm text-[#263b59] outline-none focus:ring-2 focus:ring-[#146ef5]"
-                >
-                  <option value="" disabled>
-                    {isAssigning ? "Assigning..." : "Select assignee"}
-                  </option>
-                  {users.map((staffUser) => (
-                    <option key={staffUser.id} value={staffUser.id}>
-                      {staffUser.name}
+                <div className="relative">
+                  <select
+                    id="ticket-assignee"
+                    value={draftUserId}
+                    onChange={(event) => void assignTicket(event.target.value)}
+                    disabled={isAssigning || isTerminal}
+                    aria-busy={isAssigning}
+                    className="h-10 w-full rounded-field border border-[#d9e1ea] bg-surface px-3 pr-9 text-sm text-[#263b59] outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand-ring disabled:bg-[#f4f6f8] disabled:opacity-70"
+                  >
+                    <option value="" disabled>
+                      Select assignee
                     </option>
-                  ))}
-                </select>
+                    {users.map((staffUser) => (
+                      <option key={staffUser.id} value={staffUser.id}>
+                        {staffUser.name}
+                      </option>
+                    ))}
+                  </select>
+                  {isAssigning && (
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-brand">
+                      <Spinner className="h-4 w-4" label="Assigning ticket" />
+                    </span>
+                  )}
+                </div>
               </section>
             )}
           </div>
@@ -777,19 +904,22 @@ export function TicketDrawer({
                 type="button"
                 variant="destructive"
                 onClick={cancelSelectedTicket}
-                disabled={isCancelling || isTerminal}
-                className="w-full border border-[#d91f37] bg-[#d91f37] text-white hover:border-[#bd1730] hover:bg-[#bd1730] sm:w-auto sm:min-w-[150px]"
+                loading={isCancelling}
+                loadingText="Cancelling..."
+                disabled={isTerminal || isClosing}
+                className="w-full sm:w-auto sm:min-w-[150px]"
               >
                 <CircleX className="h-4 w-4" />
-                {isCancelling ? "Cancelling..." : "Cancel Ticket"}
+                Cancel Ticket
               </Button>
             )}
 
             <Button
               type="button"
+              variant="success"
               onClick={() => setIsCloseDialogOpen(true)}
-              disabled={isTerminal || isAssigning || isClosing}
-              className="w-full bg-[#13a66d] text-white hover:bg-[#0e925f] sm:w-auto sm:min-w-[150px]"
+              disabled={isTerminal || isAssigning || isClosing || isCancelling}
+              className="w-full sm:w-auto sm:min-w-[150px]"
             >
               <CircleCheckBig className="h-4 w-4" />
               Close Ticket
@@ -797,11 +927,16 @@ export function TicketDrawer({
           </SheetFooter>
         </SheetContent>
       </Sheet>
-      <Dialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
+      <Dialog
+        open={isCloseDialogOpen}
+        onOpenChange={(open) => {
+          if (!isClosing) setIsCloseDialogOpen(open);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CircleCheckBig className="h-4 w-4 text-[#13a66d]" />
+              <CircleCheckBig className="h-4 w-4 text-success" />
               Close TK-{activeTicket.id}
             </DialogTitle>
             <DialogDescription>
@@ -817,6 +952,7 @@ export function TicketDrawer({
               onChange={(event) => setClosingMessage(event.target.value)}
               className="min-h-32"
               placeholder="Optional resolution message..."
+              disabled={isClosing}
             />
           </div>
           <DialogFooter className="!grid grid-cols-2 gap-2 sm:space-x-0">
@@ -832,12 +968,14 @@ export function TicketDrawer({
             </Button>
             <Button
               type="button"
+              variant="success"
               onClick={closeSelectedTicket}
-              disabled={isClosing}
-              className="w-full bg-[#13a66d] text-white hover:bg-[#0e925f]"
+              loading={isClosing}
+              loadingText="Closing..."
+              className="w-full"
             >
               <CircleCheckBig className="h-4 w-4" />
-              {isClosing ? "Closing..." : "Close Ticket"}
+              Close Ticket
             </Button>
           </DialogFooter>
         </DialogContent>

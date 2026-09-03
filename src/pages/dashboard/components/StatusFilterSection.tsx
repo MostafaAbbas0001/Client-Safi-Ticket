@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { CalendarRange, Check, ChevronDown, Search } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Bar,
   BarChart,
@@ -12,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { LookupItem, UserLookupItem } from "../dashboard-data";
+import type { LookupItem, UserLookupItem } from "@/models/ticket";
 import { ALL_USERS, getStatusChartColor } from "../dashboard-utils";
 
 export interface StatusFilterItem {
@@ -28,6 +29,7 @@ interface StatusFilterSectionProps {
   statusFilters: StatusFilterItem[];
   dailyTickets: DailyTicketItem[];
   totalCount: number;
+  isLoading: boolean;
   search: string;
   userFilter: string;
   statusFilterIds: number[];
@@ -120,14 +122,60 @@ function shareLabel({
   );
 }
 
+const CHART_CARD =
+  "rounded-card border border-line bg-surface p-5 shadow-card transition-shadow hover:shadow-card-hover";
+
+/**
+ * Bars of varying height read as "a chart is coming", where a blank panel or
+ * placeholder numbers would read as real (and wrong) data.
+ */
+function ChartSkeletons() {
+  const barHeights = [46, 78, 34, 62, 90, 52, 70];
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.18fr_1fr]" aria-busy="true">
+      <span className="sr-only">Loading ticket overview</span>
+      <section className={CHART_CARD}>
+        <Skeleton className="h-3 w-40" />
+        <div className="mt-5 flex h-[192px] items-end gap-3">
+          {barHeights.map((height, index) => (
+            <Skeleton
+              key={index}
+              className="flex-1 rounded-t-[2px]"
+              style={{ height: `${height}%` }}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className={CHART_CARD}>
+        <Skeleton className="h-3 w-36" />
+        <div className="mt-2 grid h-[205px] grid-cols-[44%_1fr] items-center gap-4">
+          <Skeleton className="mx-auto aspect-square h-[172px] rounded-full" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="flex items-center justify-between gap-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-6" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 const OverviewCharts = memo(function OverviewCharts({
   statusFilters,
   dailyTickets,
   totalCount,
+  isLoading,
 }: {
   statusFilters: StatusFilterItem[];
   dailyTickets: DailyTicketItem[];
   totalCount: number;
+  isLoading: boolean;
 }) {
   const daily = (dailyTickets.length ? dailyTickets : fallbackDaily).map((item) => ({
     ...item,
@@ -156,10 +204,14 @@ const OverviewCharts = memo(function OverviewCharts({
     });
   const pieRows = rows.filter((item) => item.count > 0);
 
+  if (isLoading) {
+    return <ChartSkeletons />;
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1.18fr_1fr]">
-      <section className="rounded-[8px] border border-[#dde4ec] bg-white p-5 shadow-[0_2px_8px_rgba(15,35,66,0.05)]">
-        <h2 className="text-[12px] font-semibold text-[#0f2342]">Daily Tickets Created</h2>
+      <section className={CHART_CARD}>
+        <h2 className="text-[12px] font-semibold text-ink">Daily Tickets Created</h2>
         <div className="mt-3 h-[192px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={daily} margin={{ top: 5, right: 5, bottom: 0, left: -18 }}>
@@ -206,8 +258,8 @@ const OverviewCharts = memo(function OverviewCharts({
         </div>
       </section>
 
-      <section className="rounded-[8px] border border-[#dde4ec] bg-white p-5 shadow-[0_2px_8px_rgba(15,35,66,0.05)]">
-        <h2 className="text-[12px] font-semibold text-[#0f2342]">Status Distribution</h2>
+      <section className={CHART_CARD}>
+        <h2 className="text-[12px] font-semibold text-ink">Status Distribution</h2>
         <div className="mt-2 grid h-[205px] grid-cols-[44%_1fr] items-center gap-4">
           <div className="relative h-[184px] min-w-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -313,13 +365,17 @@ function MenuField({
       <button
         type="button"
         onClick={onToggle}
-        className="flex h-9 w-full items-center justify-between rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] font-medium text-[#263b59]"
+        aria-expanded={open}
+        className="flex h-9 w-full cursor-pointer items-center justify-between rounded-field border border-[#d9e1ea] bg-surface px-3 text-[11px] font-medium text-[#263b59] transition-[border-color,box-shadow] hover:border-[#c5d1dd] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-ring"
       >
         <span className="truncate">{value}</span>
-        <ChevronDown size={14} className="text-[#61738a]" />
+        <ChevronDown
+          size={14}
+          className={`text-[#61738a] transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-full z-40 mt-1 rounded-[7px] border border-[#d9e1ea] bg-white p-1 shadow-lg">
+        <div className="animate-rise absolute left-0 right-0 top-full z-40 mt-1 rounded-field border border-[#d9e1ea] bg-surface p-1 shadow-overlay">
           {children}
         </div>
       )}
@@ -332,6 +388,7 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
     statusFilters,
     dailyTickets,
     totalCount,
+    isLoading,
     search,
     userFilter,
     statusFilterIds,
@@ -394,9 +451,10 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
         statusFilters={statusFilters}
         dailyTickets={dailyTickets}
         totalCount={totalCount}
+        isLoading={isLoading}
       />
       <section
-        className={`mt-4 grid gap-3 rounded-[9px] border border-[#dde4ec] bg-white p-3 shadow-[0_2px_8px_rgba(15,35,66,0.04)] ${showUserFilter ? "xl:grid-cols-[minmax(200px,1fr)_minmax(110px,155px)_minmax(110px,155px)_minmax(110px,150px)_minmax(110px,155px)]" : "xl:grid-cols-[minmax(200px,1fr)_minmax(110px,155px)_minmax(110px,155px)_minmax(110px,150px)]"}`}
+        className={`mt-4 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-card ${showUserFilter ? "xl:grid-cols-[minmax(200px,1fr)_minmax(110px,155px)_minmax(110px,155px)_minmax(110px,150px)_minmax(110px,155px)]" : "xl:grid-cols-[minmax(200px,1fr)_minmax(110px,155px)_minmax(110px,155px)_minmax(110px,150px)]"}`}
       >
         <label className="space-y-1">
           <span className="block text-[10px] font-medium text-[#63748a]">Search</span>
@@ -406,7 +464,7 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Title, ID, requester, or body"
-              className="h-9 w-full rounded-[7px] border border-[#d9e1ea] bg-white pl-9 pr-3 text-[11px] text-[#0f2342] outline-none placeholder:text-[#7a8ba1] focus:border-[#146ef5]"
+              className="h-9 w-full rounded-field border border-[#d9e1ea] bg-surface pl-9 pr-3 text-[11px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-[#7a8ba1] hover:border-[#c5d1dd] focus:border-brand focus:ring-2 focus:ring-brand-ring"
             />
           </div>
         </label>
@@ -417,7 +475,7 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
               type="date"
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
-              className="h-9 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] font-medium text-[#263b59] outline-none focus:border-[#146ef5]"
+              className="h-9 w-full rounded-field border border-[#d9e1ea] bg-surface px-3 text-[11px] font-medium text-[#263b59] outline-none transition-[border-color,box-shadow] hover:border-[#c5d1dd] focus:border-brand focus:ring-2 focus:ring-brand-ring"
             />
             <CalendarRange
               size={13}
@@ -432,7 +490,7 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
               type="date"
               value={endDate}
               onChange={(e) => onEndDateChange(e.target.value)}
-              className="h-9 w-full rounded-[7px] border border-[#d9e1ea] bg-white px-3 text-[11px] font-medium text-[#263b59] outline-none focus:border-[#146ef5]"
+              className="h-9 w-full rounded-field border border-[#d9e1ea] bg-surface px-3 text-[11px] font-medium text-[#263b59] outline-none transition-[border-color,box-shadow] hover:border-[#c5d1dd] focus:border-brand focus:ring-2 focus:ring-brand-ring"
             />
             <CalendarRange
               size={13}

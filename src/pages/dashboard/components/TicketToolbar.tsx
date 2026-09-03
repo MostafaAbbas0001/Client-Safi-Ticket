@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import type { LookupItem, UserLookupItem } from "../dashboard-data";
+import type { LookupItem, UserLookupItem } from "@/models/ticket";
 import { ALL_USERS } from "../dashboard-utils";
 
 interface TicketToolbarProps {

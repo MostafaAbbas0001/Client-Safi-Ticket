@@ -2,21 +2,25 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[6px] text-[12px] font-semibold transition-[color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#146ef5]/30 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "relative inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-field text-[12px] font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-[#146ef5] text-white shadow-[0_1px_2px_rgba(15,35,66,0.08)] hover:bg-[#0f62da]",
-        destructive: "bg-[#e5253a] text-white hover:bg-[#c91d31]",
+          "bg-brand text-white shadow-[0_1px_2px_rgba(15,35,66,0.08)] hover:bg-brand-strong hover:shadow-[0_2px_8px_rgba(20,110,245,0.28)]",
+        destructive:
+          "bg-danger text-white hover:bg-danger-strong hover:shadow-[0_2px_8px_rgba(217,31,55,0.26)]",
+        success:
+          "bg-success text-white hover:bg-success-strong hover:shadow-[0_2px_8px_rgba(19,166,109,0.26)]",
         outline:
-          "border border-[#d6dfe9] bg-white text-[#304760] hover:border-[#c5d1dd] hover:bg-[#f5f8fb] hover:text-[#102445]",
+          "border border-line bg-surface text-[#304760] hover:border-[#c5d1dd] hover:bg-surface-muted hover:text-ink",
         secondary: "bg-[#edf2f7] text-[#263b59] hover:bg-[#e3eaf2]",
-        ghost: "text-[#3e536d] hover:bg-[#f1f5f9] hover:text-[#102445]",
-        link: "text-[#146ef5] underline-offset-4 hover:underline",
+        ghost: "text-[#3e536d] hover:bg-[#f1f5f9] hover:text-ink",
+        link: "text-brand underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",
@@ -35,13 +39,54 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  /** Swaps the label for a spinner and blocks further clicks. */
+  loading?: boolean;
+  /** Label shown while `loading`. Falls back to the normal children. */
+  loadingText?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      loading = false,
+      loadingText,
+      children,
+      disabled,
+      ...props
+    },
+    ref,
+  ) => {
     const Comp = asChild ? Slot : "button";
+
+    if (asChild) {
+      return (
+        <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+          {children}
+        </Comp>
+      );
+    }
+
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        {...props}
+      >
+        {loading ? (
+          <>
+            <Spinner />
+            {loadingText ?? children}
+          </>
+        ) : (
+          children
+        )}
+      </Comp>
     );
   },
 );

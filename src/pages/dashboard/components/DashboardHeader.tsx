@@ -18,7 +18,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { User } from "../dashboard-data";
+import type { User } from "@/models/ticket";
 
 interface DashboardHeaderProps {
   isAdmin: boolean;
@@ -51,14 +51,14 @@ function SidebarAction({
       title={collapsed ? label : undefined}
       aria-label={label}
       onClick={onClick}
-      className={`group flex h-10 w-full items-center rounded-[6px] text-[12px] font-medium transition-colors ${
+      className={`group flex h-10 w-full cursor-pointer items-center rounded-field text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ring ${
         collapsed ? "justify-center" : "gap-3 px-3"
       } ${
         active
-          ? "bg-[#f1f6fc] text-[#1268df] shadow-[inset_2px_0_0_#146ef5]"
+          ? "bg-brand-soft text-[#1268df] shadow-[inset_2px_0_0_var(--brand)]"
           : danger
             ? "text-[#b82739] hover:bg-[#fff5f6]"
-            : "text-[#344a64] hover:bg-[#f5f7fa] hover:text-[#102445]"
+            : "text-[#344a64] hover:bg-surface-muted hover:text-ink"
       }`}
     >
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
@@ -92,13 +92,13 @@ export function DashboardHeader({
 
   return (
     <>
-      <header className="relative flex h-16 items-center border-b border-[#dde4ec] bg-white px-4 lg:hidden">
+      <header className="sticky top-0 z-20 flex h-16 items-center border-b border-line bg-surface/95 px-4 backdrop-blur-sm lg:hidden">
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <button
               type="button"
               aria-label="Open navigation"
-              className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-[#d9e1ea] bg-white text-[#3e536d] transition-colors hover:bg-[#f5f8fb] hover:text-[#102445]"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-field border border-[#d9e1ea] bg-surface text-[#3e536d] transition-colors hover:border-[#c5d1dd] hover:bg-surface-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ring"
             >
               <Menu size={18} />
             </button>
@@ -131,7 +131,7 @@ export function DashboardHeader({
               <SheetClose asChild>
                 <button
                   type="button"
-                  className="flex h-10 w-full items-center gap-3 rounded-[6px] bg-[#f1f6fc] px-3 text-[12px] font-medium text-[#1268df] shadow-[inset_2px_0_0_#146ef5]"
+                  className="flex h-10 w-full items-center gap-3 rounded-field bg-brand-soft px-3 text-[12px] font-medium text-[#1268df] shadow-[inset_2px_0_0_var(--brand)]"
                 >
                   <Gauge size={17} />
                   Dashboard
@@ -142,7 +142,7 @@ export function DashboardHeader({
                   <button
                     type="button"
                     onClick={() => runMobileAction(onAddStaff)}
-                    className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-[12px] font-medium text-[#344a64] hover:bg-[#f5f7fa]"
+                    className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-field px-3 text-[12px] font-medium text-[#344a64] transition-colors hover:bg-surface-muted hover:text-ink"
                   >
                     <UserRoundPlus size={17} />
                     Add Staff
@@ -163,7 +163,7 @@ export function DashboardHeader({
                 <button
                   type="button"
                   onClick={() => runMobileAction(onLogout)}
-                  className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-[12px] font-medium text-[#b82739] hover:bg-[#fff5f6]"
+                  className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-field px-3 text-[12px] font-medium text-[#b82739] transition-colors hover:bg-[#fff5f6]"
                 >
                   <LogOut size={17} />
                   Sign Out
@@ -181,7 +181,7 @@ export function DashboardHeader({
       </header>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#dde4ec] bg-white py-4 transition-[width,padding] duration-200 lg:flex lg:flex-col ${
+        className={`fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-surface py-4 transition-[width,padding] duration-200 lg:flex lg:flex-col ${
           isSidebarCollapsed ? "w-[72px] px-2" : "w-[212px] px-3"
         }`}
       >
@@ -259,7 +259,7 @@ export function DashboardHeader({
             onClick={onToggleSidebar}
             aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`flex h-9 w-full items-center rounded-[6px] text-[11px] font-medium text-[#5a6d83] transition-colors hover:bg-[#f5f7fa] hover:text-[#102445] ${
+            className={`flex h-9 w-full cursor-pointer items-center rounded-field text-[11px] font-medium text-[#5a6d83] transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-ring ${
               isSidebarCollapsed ? "justify-center" : "gap-3 px-3"
             }`}
           >

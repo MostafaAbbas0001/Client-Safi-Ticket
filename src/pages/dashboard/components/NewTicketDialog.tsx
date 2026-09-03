@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { User } from "../dashboard-data";
+import type { User } from "@/models/ticket";
 
 interface NewTicketDialogProps {
   open: boolean;
@@ -97,110 +97,131 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!isCreating) onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <TicketPlus className="h-4 w-4 text-[#146ef5]" />
+            <TicketPlus className="h-4 w-4 text-brand" />
             New ticket
           </DialogTitle>
           <DialogDescription>Submit a helpdesk request with supporting details.</DialogDescription>
         </DialogHeader>
 
+        {/* Disabling the whole set while the request is in flight stops
+            duplicate submissions and makes the pause self-explanatory. */}
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="new-ticket-title">Title</Label>
-              <Input
-                id="new-ticket-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Brief summary"
-                maxLength={120}
+          <fieldset
+            disabled={isCreating}
+            className="m-0 min-w-0 space-y-4 border-0 p-0 transition-opacity disabled:opacity-60"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="new-ticket-title">Title</Label>
+                <Input
+                  id="new-ticket-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Brief summary"
+                  maxLength={120}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-ticket-requester">Requester</Label>
+                <Input
+                  id="new-ticket-requester"
+                  value={requester}
+                  onChange={(event) => setRequester(event.target.value)}
+                  placeholder="Requester name"
+                  maxLength={80}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-ticket-requester-email">Requester email</Label>
+                <Input
+                  id="new-ticket-requester-email"
+                  type="email"
+                  value={requesterEmail}
+                  onChange={(event) => setRequesterEmail(event.target.value)}
+                  placeholder="requester@company.com"
+                  maxLength={160}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-ticket-body">Description</Label>
+              <Textarea
+                id="new-ticket-body"
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                placeholder="Describe the request, impact, and required action."
+                className="min-h-32"
+                maxLength={2000}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="new-ticket-requester">Requester</Label>
+              <Label htmlFor="new-ticket-attachments" className="flex items-center gap-2">
+                <Paperclip className="h-3.5 w-3.5 text-[#63748a]" />
+                Attachments
+              </Label>
               <Input
-                id="new-ticket-requester"
-                value={requester}
-                onChange={(event) => setRequester(event.target.value)}
-                placeholder="Requester name"
-                maxLength={80}
+                id="new-ticket-attachments"
+                type="file"
+                multiple
+                onChange={(event) => setAttachments(Array.from(event.target.files ?? []))}
               />
+              {attachments.length > 0 && (
+                <ul className="divide-y divide-[#e2e7ee] rounded-field border border-[#d9e1ea] bg-[#fbfcfe] text-sm text-ink-muted">
+                  {attachments.map((file) => (
+                    <li
+                      key={`${file.name}-${file.size}`}
+                      className="flex items-center gap-2 px-3 py-2"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                      <span className="truncate">{file.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="new-ticket-requester-email">Requester email</Label>
-              <Input
-                id="new-ticket-requester-email"
-                type="email"
-                value={requesterEmail}
-                onChange={(event) => setRequesterEmail(event.target.value)}
-                placeholder="requester@company.com"
-                maxLength={160}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="new-ticket-body">Description</Label>
-            <Textarea
-              id="new-ticket-body"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder="Describe the request, impact, and required action."
-              className="min-h-32"
-              maxLength={2000}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="new-ticket-attachments" className="flex items-center gap-2">
-              <Paperclip className="h-3.5 w-3.5 text-[#63748a]" />
-              Attachments
-            </Label>
-            <Input
-              id="new-ticket-attachments"
-              type="file"
-              multiple
-              onChange={(event) => setAttachments(Array.from(event.target.files ?? []))}
-            />
-            {attachments.length > 0 && (
-              <ul className="divide-y divide-[#e2e7ee] rounded-[7px] border border-[#d9e1ea] bg-[#fbfcfe] text-sm text-[#63748a]">
-                {attachments.map((file) => (
-                  <li
-                    key={`${file.name}-${file.size}`}
-                    className="flex items-center gap-2 px-3 py-2"
-                  >
-                    <FileText className="h-3.5 w-3.5 shrink-0 text-[#63748a]" />
-                    <span className="truncate">{file.name}</span>
-                  </li>
-                ))}
-              </ul>
+            {error && (
+              <p
+                role="alert"
+                className="rounded-field bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </p>
             )}
-          </div>
-
-          {error && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          </fieldset>
 
           <DialogFooter className="!grid grid-cols-1 gap-2 sm:grid-cols-2 sm:space-x-0">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isCreating}
               className="w-full"
             >
               <X className="h-4 w-4" />
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating} className="w-full">
+            <Button
+              type="submit"
+              loading={isCreating}
+              loadingText="Creating ticket..."
+              className="w-full"
+            >
               <TicketPlus className="h-4 w-4" />
-              {isCreating ? "Creating..." : "Create ticket"}
+              Create ticket
             </Button>
           </DialogFooter>
         </form>

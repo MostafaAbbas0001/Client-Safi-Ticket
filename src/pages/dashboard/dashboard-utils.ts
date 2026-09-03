@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { LookupItem, Ticket, UserLookupItem } from "./dashboard-data";
+import type { LookupItem, Ticket, UserLookupItem } from "@/models/ticket";
 
 export const ALL_USERS = "all-users";
 export const PAGE_SIZE = 50;

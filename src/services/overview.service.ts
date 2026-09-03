@@ -1,5 +1,4 @@
 import { apiClient } from "./api-client";
-import { ClientCache, createCacheKey } from "./client-cache";
 
 export interface TicketStatusOverview {
   id: number;
@@ -26,15 +25,9 @@ export interface TicketOverviewQuery {
   userId?: number;
 }
 
-const overviewCache = new ClientCache<TicketOverview>(30 * 1000);
-
 export const overviewService = {
   async getTicketOverview(query: TicketOverviewQuery) {
-    const overview = await overviewCache.get(createCacheKey(query), () =>
-      apiClient.get<TicketOverview>("/api/overview/tickets", {
-        query,
-      }),
-    );
+    const overview = await apiClient.get<TicketOverview>("/api/overview/tickets", { query });
 
     return {
       ...overview,
@@ -42,9 +35,5 @@ export const overviewService = {
       statuses: Array.isArray(overview.statuses) ? overview.statuses : [],
       dailyTickets: Array.isArray(overview.dailyTickets) ? overview.dailyTickets : [],
     };
-  },
-
-  clearCache() {
-    overviewCache.clear();
   },
 };
