@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
+import type { ResetPasswordVariables } from "@/models";
 
 export function useLoginMutation() {
   const queryClient = useQueryClient();
@@ -16,14 +17,7 @@ export function useForgotPasswordMutation() {
 
 export function useResetPasswordMutation() {
   return useMutation({
-    mutationFn: ({
-      email,
-      token,
-      newPassword,
-    }: {
-      email: string;
-      token: string;
-      newPassword: string;
-    }) => authService.resetPassword(email, token, newPassword),
+    mutationFn: ({ email, token, newPassword }: ResetPasswordVariables) =>
+      authService.resetPassword(email, token, newPassword),
   });
 }

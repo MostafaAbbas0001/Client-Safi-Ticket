@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { FileText, Paperclip, TicketPlus, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/button";
 import {
   Dialog,
   DialogContent,
@@ -9,24 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import type { User } from "@/models/ticket";
-
-interface NewTicketDialogProps {
-  open: boolean;
-  user: User;
-  onOpenChange: (open: boolean) => void;
-  onCreated: (request: {
-    title: string;
-    body: string;
-    requester: string;
-    requesterEmail: string;
-    attachments: File[];
-  }) => Promise<void>;
-}
+} from "@/components/dialog";
+import { Input } from "@/components/input";
+import { Label } from "@/components/label";
+import { Textarea } from "@/components/textarea";
+import type { NewTicketDialogProps } from "@/models";
 
 export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTicketDialogProps) {
   const [title, setTitle] = useState("");
@@ -114,10 +101,10 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
 
         {/* Disabling the whole set while the request is in flight stops
             duplicate submissions and makes the pause self-explanatory. */}
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit}>
           <fieldset
             disabled={isCreating}
-            className="m-0 min-w-0 space-y-4 border-0 p-0 transition-opacity disabled:opacity-60"
+            className="m-0 min-w-0 space-y-5 border-0 px-5 py-5 transition-opacity disabled:opacity-60 sm:px-6"
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
@@ -203,7 +190,7 @@ export function NewTicketDialog({ open, user, onOpenChange, onCreated }: NewTick
             )}
           </fieldset>
 
-          <DialogFooter className="!grid grid-cols-1 gap-2 sm:grid-cols-2 sm:space-x-0">
+          <DialogFooter className="!grid grid-cols-1 sm:grid-cols-2">
             <Button
               type="button"
               variant="outline"

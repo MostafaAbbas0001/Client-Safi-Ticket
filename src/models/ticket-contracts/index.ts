@@ -1,0 +1,13 @@
+export type * from "./add-ticket-comment-variables";
+export type * from "./close-ticket-request";
+export type * from "./close-ticket-variables";
+export type * from "./create-ticket-comment-request";
+export type * from "./create-ticket-reply-request";
+export type * from "./create-ticket-request";
+export type * from "./create-ticket-with-attachments-request";
+export type * from "./created-ticket-with-attachments-response";
+export type * from "./reply-to-requester-variables";
+export type * from "./ticket-query";
+export type * from "./ticket-search-response";
+export type * from "./update-ticket-request";
+export type * from "./update-ticket-variables";

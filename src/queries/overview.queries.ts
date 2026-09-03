@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "./query-keys";
-import { overviewService, type TicketOverviewQuery } from "@/services/overview.service";
+import { overviewService } from "@/services/overview.service";
+import type { TicketOverviewQuery } from "@/models";
 
 export function useTicketOverviewQuery(query: TicketOverviewQuery) {
   return useQuery({

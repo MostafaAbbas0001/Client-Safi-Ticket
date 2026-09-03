@@ -288,66 +288,6 @@
     outline: none;
   }
 
-  .drawer-scroll-region {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .drawer-scroll-region::-webkit-scrollbar {
-    display: none;
-  }
-
-  .conversation-scrollbar {
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: #8297ad #f1f4f7;
-  }
-
-  .conversation-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .conversation-scrollbar::-webkit-scrollbar-track {
-    border-radius: 8px;
-    background: #f1f4f7;
-  }
-
-  .conversation-scrollbar::-webkit-scrollbar-thumb {
-    min-height: 40px;
-    border: 2px solid #f1f4f7;
-    border-radius: 8px;
-    background: #8297ad;
-  }
-
-  .conversation-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #637b94;
-  }
-
-  .attachment-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #8297ad transparent;
-  }
-
-  .attachment-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .attachment-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .attachment-scrollbar::-webkit-scrollbar-thumb {
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: #8297ad;
-    background-clip: content-box;
-  }
-
-  .attachment-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: #5e7690;
-  }
-
   .donut-percentage-label {
     opacity: 0;
     animation: donut-percentage-in 520ms cubic-bezier(0.22, 1, 0.36, 1) 620ms forwards;
@@ -438,7 +378,36 @@
   }
 }
 
+::view-transition-group(root) {
+  animation-duration: 140ms;
+}
+
+::view-transition-old(root) {
+  animation: page-fade-out 140ms ease-out both;
+}
+
+::view-transition-new(root) {
+  animation: page-fade-in 140ms ease-out both;
+}
+
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+
   .donut-percentage-label {
     opacity: 1;
     animation: none;

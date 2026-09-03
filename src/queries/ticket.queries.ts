@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./query-keys";
-import type { Ticket, TicketAttachment, TicketComment } from "@/models/ticket";
-import {
-  ticketService,
-  type CloseTicketRequest,
-  type CreateTicketCommentRequest,
-  type CreateTicketReplyRequest,
-  type TicketQuery,
-  type TicketSearchResponse,
-  type UpdateTicketRequest,
-} from "@/services/ticket.service";
+import { ticketService } from "@/services/ticket.service";
+import type {
+  AddTicketCommentVariables,
+  CloseTicketVariables,
+  ReplyToRequesterVariables,
+  Ticket,
+  TicketAttachment,
+  TicketComment,
+  TicketQuery,
+  TicketSearchResponse,
+  UpdateTicketVariables,
+} from "@/models";
 
 function updateTicketInCachedLists(queryClient: QueryClient, updatedTicket: Ticket) {
   queryClient.setQueriesData<TicketSearchResponse>(
@@ -27,6 +29,36 @@ function updateTicketInCachedLists(queryClient: QueryClient, updatedTicket: Tick
   queryClient.setQueryData(queryKeys.tickets.detail(updatedTicket.id), updatedTicket);
 }
 
+function markRequesterRepliesAsReadInCachedLists(queryClient: QueryClient, ticketId: number) {
+  queryClient.setQueriesData<TicketSearchResponse>(
+    { queryKey: queryKeys.tickets.lists() },
+    (current) =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((ticket) =>
+              ticket.id === ticketId
+                ? {
+                    ...ticket,
+                    hasUnreadRequesterReply: false,
+                    unreadRequesterReplyCount: 0,
+                  }
+                : ticket,
+            ),
+          }
+        : current,
+  );
+  queryClient.setQueryData<Ticket>(queryKeys.tickets.detail(ticketId), (current) =>
+    current
+      ? {
+          ...current,
+          hasUnreadRequesterReply: false,
+          unreadRequesterReplyCount: 0,
+        }
+      : current,
+  );
+}
+
 function invalidateTicketListsAndOverview(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() }),
@@ -40,20 +72,38 @@ export function useTicketsQuery(query: TicketQuery, fallback: TicketSearchRespon
     queryFn: () => ticketService.getTickets(query),
     placeholderData: (previousData) => previousData ?? fallback,
     staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
-export function useTicketCommentsQuery(ticketId: number | null, fallback: TicketComment[]) {
+export function useTicketQuery(ticketId: number) {
+  return useQuery({
+    queryKey: queryKeys.tickets.detail(ticketId),
+    queryFn: () => ticketService.getTicket(ticketId),
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useTicketCommentsQuery(ticketId: number | null, fallback: TicketComment[] = []) {
   return useQuery({
     queryKey: queryKeys.tickets.comments(ticketId ?? 0),
     queryFn: () => ticketService.getComments(ticketId!),
     enabled: ticketId !== null,
     placeholderData: fallback,
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchInterval: ticketId !== null ? 30 * 1000 : false,
+    refetchOnWindowFocus: true,
   });
 }
 
-export function useTicketAttachmentsQuery(ticketId: number | null, fallback: TicketAttachment[]) {
+export function useTicketAttachmentsQuery(
+  ticketId: number | null,
+  fallback: TicketAttachment[] = [],
+) {
   return useQuery({
     queryKey: queryKeys.tickets.attachments(ticketId ?? 0),
     queryFn: () => ticketService.getAttachments(ticketId!),
@@ -76,7 +126,7 @@ export function useUpdateTicketMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ ticketId, request }: { ticketId: number; request: UpdateTicketRequest }) =>
+    mutationFn: ({ ticketId, request }: UpdateTicketVariables) =>
       ticketService.updateTicket(ticketId, request),
     onSuccess: (ticket) => {
       updateTicketInCachedLists(queryClient, ticket);
@@ -101,7 +151,7 @@ export function useCloseTicketMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ ticketId, request }: { ticketId: number; request: CloseTicketRequest }) =>
+    mutationFn: ({ ticketId, request }: CloseTicketVariables) =>
       ticketService.closeTicket(ticketId, request),
     onSuccess: (ticket) => {
       updateTicketInCachedLists(queryClient, ticket);
@@ -117,13 +167,8 @@ export function useAddTicketCommentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      ticketId,
-      request,
-    }: {
-      ticketId: number;
-      request: CreateTicketCommentRequest;
-    }) => ticketService.addComment(ticketId, request),
+    mutationFn: ({ ticketId, request }: AddTicketCommentVariables) =>
+      ticketService.addComment(ticketId, request),
     onSuccess: (comment) => {
       queryClient.setQueryData<TicketComment[]>(
         queryKeys.tickets.comments(comment.ticketId),
@@ -138,7 +183,7 @@ export function useReplyToRequesterMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ ticketId, request }: { ticketId: number; request: CreateTicketReplyRequest }) =>
+    mutationFn: ({ ticketId, request }: ReplyToRequesterVariables) =>
       ticketService.replyToRequester(ticketId, request),
     onSuccess: (comment) => {
       queryClient.setQueryData<TicketComment[]>(
@@ -146,6 +191,17 @@ export function useReplyToRequesterMutation() {
         (current = []) => [...current, comment],
       );
       return queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
+    },
+  });
+}
+
+export function useMarkRequesterRepliesAsReadMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ticketService.markRequesterRepliesAsRead,
+    onSuccess: (_, ticketId) => {
+      markRequesterRepliesAsReadInCachedLists(queryClient, ticketId);
     },
   });
 }

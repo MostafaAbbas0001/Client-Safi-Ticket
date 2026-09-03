@@ -1,13 +1,5 @@
 import { apiClient } from "./api-client";
-import type { UserLookupItem } from "@/models/ticket";
-
-export interface CreateUserRequest {
-  name: string;
-  email: string;
-  phoneNumber: string;
-  password: string;
-  roleId: number;
-}
+import type { CreateUserRequest, UserLookupItem } from "@/models";
 
 export const userService = {
   async getUsers() {

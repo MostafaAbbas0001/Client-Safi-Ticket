@@ -1,10 +1,9 @@
-type QueryPrimitive = string | number | boolean | null | undefined;
-type QueryValue = QueryPrimitive | QueryPrimitive[];
-
-export interface ApiRequestOptions extends Omit<RequestInit, "body"> {
-  body?: unknown;
-  query?: Record<string, QueryValue>;
-}
+import type {
+  ApiRequestOptions,
+  QueryValue,
+  StoredAuthSession,
+  TokenExpirationPayload,
+} from "@/models";
 
 export class ApiError extends Error {
   status: number;
@@ -106,7 +105,7 @@ function getTokenExpirationTime(token: string) {
   if (!payload) return null;
 
   try {
-    const decoded = JSON.parse(decodeBase64Url(payload)) as { exp?: unknown };
+    const decoded = JSON.parse(decodeBase64Url(payload)) as TokenExpirationPayload;
     return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
   } catch {
     return null;
@@ -124,7 +123,7 @@ function getAuthToken() {
   if (!storedSession) return null;
 
   try {
-    const session = JSON.parse(storedSession) as { token?: unknown };
+    const session = JSON.parse(storedSession) as StoredAuthSession;
     const token = typeof session.token === "string" ? session.token.trim() : "";
 
     if (!token) return null;

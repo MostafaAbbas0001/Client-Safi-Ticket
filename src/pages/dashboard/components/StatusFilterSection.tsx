@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { CalendarRange, Check, ChevronDown, Search } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarRange, Check, Search } from "lucide-react";
+import { MENU_DIVIDER, MENU_OPTION, MENU_OPTION_ACTIVE, MenuField } from "@/components/menu-field";
+import { Skeleton } from "@/components/skeleton";
 import {
   Bar,
   BarChart,
@@ -13,37 +14,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { LookupItem, UserLookupItem } from "@/models/ticket";
-import { ALL_USERS, getStatusChartColor } from "../dashboard-utils";
-
-export interface StatusFilterItem {
-  id: number;
-  name: string;
-  count: number;
-}
-interface DailyTicketItem {
-  date: string;
-  count: number;
-}
-interface StatusFilterSectionProps {
-  statusFilters: StatusFilterItem[];
-  dailyTickets: DailyTicketItem[];
-  totalCount: number;
-  isLoading: boolean;
-  search: string;
-  userFilter: string;
-  statusFilterIds: number[];
-  showUserFilter: boolean;
-  users: UserLookupItem[];
-  statuses: LookupItem[];
-  startDate: string;
-  endDate: string;
-  onSearchChange: (value: string) => void;
-  onUserChange: (value: string) => void;
-  onStatusChange: (value: number[]) => void;
-  onStartDateChange: (value: string) => void;
-  onEndDateChange: (value: string) => void;
-}
+import type { OverviewChartsProps, ShareLabelProps, StatusFilterSectionProps } from "@/models";
+import { getStatusChartColor } from "@/lib/ticket-status";
+import { ALL_USERS } from "../dashboard-utils";
 
 const fallbackDaily = [
   { date: "2026-08-31", count: 7 },
@@ -81,21 +54,7 @@ function statusGradient(name: string, color: string) {
   return { start: color, end: color };
 }
 
-function shareLabel({
-  cx,
-  cy,
-  midAngle,
-  innerRadius,
-  outerRadius,
-  percent,
-}: {
-  cx?: number | string;
-  cy?: number | string;
-  midAngle?: number;
-  innerRadius?: number;
-  outerRadius?: number;
-  percent?: number;
-}) {
+function shareLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: ShareLabelProps) {
   if (
     typeof cx !== "number" ||
     typeof cy !== "number" ||
@@ -171,12 +130,7 @@ const OverviewCharts = memo(function OverviewCharts({
   dailyTickets,
   totalCount,
   isLoading,
-}: {
-  statusFilters: StatusFilterItem[];
-  dailyTickets: DailyTicketItem[];
-  totalCount: number;
-  isLoading: boolean;
-}) {
+}: OverviewChartsProps) {
   const daily = (dailyTickets.length ? dailyTickets : fallbackDaily).map((item) => ({
     ...item,
     day: dayLabel(item.date),
@@ -344,45 +298,6 @@ const OverviewCharts = memo(function OverviewCharts({
   );
 });
 
-function MenuField({
-  label,
-  value,
-  open,
-  onToggle,
-  children,
-  fieldRef,
-}: {
-  label: string;
-  value: string;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-  fieldRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  return (
-    <div ref={fieldRef} className="relative space-y-1">
-      <span className="block text-[10px] font-medium text-[#63748a]">{label}</span>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex h-9 w-full cursor-pointer items-center justify-between rounded-field border border-[#d9e1ea] bg-surface px-3 text-[11px] font-medium text-[#263b59] transition-[border-color,box-shadow] hover:border-[#c5d1dd] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-ring"
-      >
-        <span className="truncate">{value}</span>
-        <ChevronDown
-          size={14}
-          className={`text-[#61738a] transition-transform duration-150 ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open && (
-        <div className="animate-rise absolute left-0 right-0 top-full z-40 mt-1 rounded-field border border-[#d9e1ea] bg-surface p-1 shadow-overlay">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function StatusFilterSection(props: StatusFilterSectionProps) {
   const {
     statusFilters,
@@ -511,22 +426,23 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
               onStatusChange([]);
               setStatusOpen(false);
             }}
-            className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-xs hover:bg-[#f4f7fb]"
+            className={`${MENU_OPTION} ${!statusFilterIds.length ? MENU_OPTION_ACTIVE : ""}`}
           >
-            All statuses {!statusFilterIds.length && <Check size={14} className="text-[#146ef5]" />}
+            All statuses
+            {!statusFilterIds.length && <Check size={14} className="shrink-0" />}
           </button>
+          <div className={MENU_DIVIDER} />
           {statuses.map((item) => (
-            <label
-              key={item.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-xs hover:bg-[#f4f7fb]"
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(item.id)}
-                onChange={() => toggleStatus(item.id)}
-                className="h-3.5 w-3.5 rounded border-[#c9d4e0] accent-[#146ef5]"
-              />
-              <span className="truncate">{item.name}</span>
+            <label key={item.id} className={MENU_OPTION}>
+              <span className="flex min-w-0 items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selected.has(item.id)}
+                  onChange={() => toggleStatus(item.id)}
+                  className="h-3.5 w-3.5 shrink-0 rounded border-[#c9d4e0] accent-brand"
+                />
+                <span className="truncate">{item.name}</span>
+              </span>
             </label>
           ))}
         </MenuField>
@@ -544,10 +460,12 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
                 onUserChange(ALL_USERS);
                 setUserOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-xs hover:bg-[#f4f7fb]"
+              className={`${MENU_OPTION} ${userFilter === ALL_USERS ? MENU_OPTION_ACTIVE : ""}`}
             >
-              All users {userFilter === ALL_USERS && <Check size={14} className="text-[#146ef5]" />}
+              All users
+              {userFilter === ALL_USERS && <Check size={14} className="shrink-0" />}
             </button>
+            <div className={MENU_DIVIDER} />
             {users.map((item) => (
               <button
                 key={item.id}
@@ -556,10 +474,10 @@ export function StatusFilterSection(props: StatusFilterSectionProps) {
                   onUserChange(String(item.id));
                   setUserOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-2 rounded px-2 py-2 text-left text-xs hover:bg-[#f4f7fb]"
+                className={`${MENU_OPTION} ${userFilter === String(item.id) ? MENU_OPTION_ACTIVE : ""}`}
               >
                 <span className="truncate">{item.name}</span>
-                {userFilter === String(item.id) && <Check size={14} className="text-[#146ef5]" />}
+                {userFilter === String(item.id) && <Check size={14} className="shrink-0" />}
               </button>
             ))}
           </MenuField>

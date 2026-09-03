@@ -1,29 +1,5 @@
 import { apiClient } from "./api-client";
-
-export interface TicketStatusOverview {
-  id: number;
-  name: string;
-  count: number;
-}
-
-export interface TicketDailyOverview {
-  date: string;
-  count: number;
-}
-
-export interface TicketOverview {
-  startDate?: string | null;
-  endDate?: string | null;
-  totalCount: number;
-  statuses: TicketStatusOverview[];
-  dailyTickets: TicketDailyOverview[];
-}
-
-export interface TicketOverviewQuery {
-  startDate?: string;
-  endDate?: string;
-  userId?: number;
-}
+import type { TicketOverview, TicketOverviewQuery } from "@/models";
 
 export const overviewService = {
   async getTicketOverview(query: TicketOverviewQuery) {

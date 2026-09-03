@@ -17,18 +17,8 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import type { User } from "@/models/ticket";
-
-interface DashboardHeaderProps {
-  isAdmin: boolean;
-  isSidebarCollapsed: boolean;
-  user: User;
-  onAddStaff: () => void;
-  onNewTicket: () => void;
-  onLogout: () => void;
-  onToggleSidebar: () => void;
-}
+} from "@/components/sheet";
+import type { DashboardHeaderProps, SidebarActionProps } from "@/models";
 
 function SidebarAction({
   icon,
@@ -37,14 +27,7 @@ function SidebarAction({
   active = false,
   danger = false,
   collapsed,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-  active?: boolean;
-  danger?: boolean;
-  collapsed: boolean;
-}) {
+}: SidebarActionProps) {
   return (
     <button
       type="button"
@@ -153,7 +136,7 @@ export function DashboardHeader({
                 <button
                   type="button"
                   onClick={() => runMobileAction(onNewTicket)}
-                  className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-[12px] font-medium text-[#344a64] hover:bg-[#f5f7fa]"
+                  className="flex h-10 w-full cursor-pointer items-center gap-3 rounded-field px-3 text-[12px] font-medium text-[#344a64] transition-colors hover:bg-surface-muted hover:text-ink"
                 >
                   <TicketPlus size={17} />
                   New Ticket

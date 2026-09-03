@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from "react";
-import { UserRoundPlus, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Check, UserRoundPlus, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/button";
 import {
   Dialog,
   DialogContent,
@@ -9,18 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import type { LookupItem } from "@/models/ticket";
-import type { CreateUserRequest } from "@/services/user.service";
-
-interface StaffDialogProps {
-  open: boolean;
-  roles: LookupItem[];
-  onOpenChange: (open: boolean) => void;
-  onCreated: (request: CreateUserRequest) => Promise<void>;
-}
+} from "@/components/dialog";
+import { Input } from "@/components/input";
+import { Label } from "@/components/label";
+import { MENU_OPTION, MENU_OPTION_ACTIVE, MenuField } from "@/components/menu-field";
+import type { StaffDialogProps } from "@/models";
 
 export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialogProps) {
   const [name, setName] = useState("");
@@ -28,8 +21,26 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [roleId, setRoleId] = useState("");
+  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const roleFieldRef = useRef<HTMLDivElement>(null);
+  const selectedRole = roles.find((role) => String(role.id) === roleId);
+
+  useEffect(() => {
+    if (!isRoleMenuOpen) return;
+
+    const closeRoleMenu = (event: MouseEvent) => {
+      if (!roleFieldRef.current?.contains(event.target as Node)) setIsRoleMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeRoleMenu);
+    return () => document.removeEventListener("mousedown", closeRoleMenu);
+  }, [isRoleMenuOpen]);
+
+  useEffect(() => {
+    if (!open) setIsRoleMenuOpen(false);
+  }, [open]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -76,7 +87,7 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
         if (!isCreating) onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserRoundPlus className="h-4 w-4 text-brand" />
@@ -85,10 +96,10 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
           <DialogDescription>Create an internal helpdesk account.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit}>
           <fieldset
             disabled={isCreating}
-            className="m-0 min-w-0 space-y-4 border-0 p-0 transition-opacity disabled:opacity-60"
+            className="m-0 min-w-0 space-y-5 border-0 px-5 py-5 transition-opacity disabled:opacity-60 sm:px-6"
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -127,22 +138,37 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="staff-role">Role</Label>
-                <select
+                <MenuField
                   id="staff-role"
-                  value={roleId}
-                  onChange={(event) => setRoleId(event.target.value)}
-                  className="h-10 w-full cursor-pointer rounded-field border border-[#d9e1ea] bg-surface px-3 py-2 text-sm text-ink outline-none transition-[border-color,box-shadow] hover:border-[#c5d1dd] focus:border-brand focus:ring-2 focus:ring-brand-ring disabled:cursor-not-allowed disabled:bg-[#f4f6f8] disabled:opacity-60"
+                  value={
+                    selectedRole?.name ??
+                    (roles.length === 0 ? "No roles available" : "Select role")
+                  }
+                  open={isRoleMenuOpen}
+                  onToggle={() => setIsRoleMenuOpen((current) => !current)}
+                  fieldRef={roleFieldRef}
                   disabled={roles.length === 0}
+                  menuClassName="bottom-full top-auto mb-1.5 mt-0"
                 >
-                  <option value="" disabled>
-                    {roles.length === 0 ? "No roles available" : "Select role"}
-                  </option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
+                  {roles.map((role) => {
+                    const isSelected = String(role.id) === roleId;
+
+                    return (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => {
+                          setRoleId(String(role.id));
+                          setIsRoleMenuOpen(false);
+                        }}
+                        className={`${MENU_OPTION} ${isSelected ? MENU_OPTION_ACTIVE : ""}`}
+                      >
+                        <span>{role.name}</span>
+                        {isSelected && <Check className="h-3.5 w-3.5" />}
+                      </button>
+                    );
+                  })}
+                </MenuField>
               </div>
             </div>
 
@@ -156,7 +182,7 @@ export function StaffDialog({ open, roles, onOpenChange, onCreated }: StaffDialo
             )}
           </fieldset>
 
-          <DialogFooter className="!grid grid-cols-1 gap-2 sm:grid-cols-2 sm:space-x-0">
+          <DialogFooter className="!grid grid-cols-1 sm:grid-cols-2">
             <Button
               type="button"
               variant="outline"

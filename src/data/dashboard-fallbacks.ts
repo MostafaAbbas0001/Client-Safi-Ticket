@@ -1,10 +1,4 @@
-import type {
-  LookupItem,
-  Ticket,
-  TicketAttachment,
-  TicketComment,
-  UserLookupItem,
-} from "@/models/ticket";
+import type { LookupItem, Ticket, UserLookupItem } from "@/models";
 
 export const staticStatuses: LookupItem[] = [
   { id: 1, name: "Initiated" },
@@ -110,29 +104,3 @@ export const staticTickets: Ticket[] = [
     createdAt: "2026-09-01T13:41:00",
   },
 ];
-
-export const staticComments: TicketComment[] = [
-  {
-    id: 1,
-    ticketId: 188,
-    body: "Please add the name Waad wesam Al-Khamis to the HOS Khairan Mall system",
-    authorName: "Hazem Al Mhanna",
-    authorEmail: "Hazem.Almhanna@saficos.com",
-    authorType: "Requester",
-    isInternalNote: false,
-    createdAt: "2026-09-02T11:49:36",
-  },
-  {
-    id: 2,
-    ticketId: 188,
-    body: "Added, log out and log in again to reflect the changes",
-    authorName: "Mostafa Abbas",
-    authorEmail: "mostafa.abbas@saficos.com",
-    authorType: "Agent",
-    isInternalNote: false,
-    userId: 1,
-    createdAt: "2026-09-02T12:05:46",
-  },
-];
-
-export const staticAttachments: TicketAttachment[] = [];

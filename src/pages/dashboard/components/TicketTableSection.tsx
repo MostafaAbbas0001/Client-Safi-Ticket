@@ -1,29 +1,23 @@
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { Ticket, User } from "@/models/ticket";
+import { EmptyState } from "@/components/empty-state";
+import { ProgressBar } from "@/components/progress-bar";
+import { Skeleton } from "@/components/skeleton";
+import type { TicketTableSectionProps } from "@/models";
 import { getBodyPreview } from "../dashboard-utils";
-import { StatusBadge } from "./TicketBadges";
-
-interface TicketTableSectionProps {
-  tickets: Ticket[];
-  isAdmin: boolean;
-  /** No real payload has arrived yet - show skeletons. */
-  isLoading: boolean;
-  /** Rows on screen are real but stale while a new page/filter loads. */
-  isRefreshing: boolean;
-  currentUser: User;
-  page: number;
-  pageCount: number;
-  pageSize: number;
-  totalCount: number;
-  onPageChange: (updater: (page: number) => number) => void;
-  onSelectTicket: (ticket: Ticket) => void;
-}
+import { StatusBadge } from "@/components/status-badge";
+import { UnreadReplyBadge } from "@/components/unread-reply-badge";
 
 const SKELETON_ROWS = 8;
-const COLUMNS = ["ID", "Title", "Body preview", "Requester", "Status", "Assignee", "Created"];
+const COLUMNS: { key: string; label: string; center?: boolean; srOnlyLabel?: boolean }[] = [
+  { key: "id", label: "ID" },
+  { key: "title", label: "Title" },
+  { key: "body", label: "Body preview" },
+  { key: "requester", label: "Requester" },
+  { key: "status", label: "Status", center: true },
+  { key: "assignee", label: "Assignee" },
+  { key: "created", label: "Created" },
+  { key: "reply", label: "Unread replies", center: true, srOnlyLabel: true },
+];
 
 function ticketDate(value?: string) {
   if (!value) return "N/A";
@@ -61,6 +55,9 @@ function SkeletonRow() {
       </td>
       <td className="px-3">
         <Skeleton className="h-3 w-[88%]" />
+      </td>
+      <td className="px-3 text-center">
+        <Skeleton className="mx-auto h-4 w-4 rounded-full" />
       </td>
     </tr>
   );
@@ -149,7 +146,11 @@ export function TicketTableSection({
               key={ticket.id}
               type="button"
               onClick={() => onSelectTicket(ticket)}
-              className="w-full px-4 py-4 text-left transition-colors hover:bg-surface-hover"
+              className={`w-full border-l-[3px] px-4 py-4 text-left transition-colors hover:bg-surface-hover ${
+                ticket.hasUnreadRequesterReply
+                  ? "border-l-brand bg-brand-soft/40"
+                  : "border-l-transparent"
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -160,7 +161,12 @@ export function TicketTableSection({
                     {ticket.title}
                   </p>
                 </div>
-                <StatusBadge status={ticket.status} />
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <StatusBadge status={ticket.status} />
+                  {ticket.hasUnreadRequesterReply && (
+                    <UnreadReplyBadge count={ticket.unreadRequesterReplyCount ?? 1} />
+                  )}
+                </div>
               </div>
 
               <p className="mt-2 line-clamp-2 text-[11px] leading-[17px] text-ink-muted">
@@ -198,17 +204,18 @@ export function TicketTableSection({
           <colgroup>
             <col className="w-[7%]" />
             <col className="w-[17%]" />
-            <col className="w-[23%]" />
+            <col className="w-[17%]" />
             <col className="w-[14%]" />
             <col className="w-[11%]" />
             <col className="w-[13%]" />
             <col className="w-[15%]" />
+            <col className="w-[6%]" />
           </colgroup>
           <thead className="bg-surface-muted">
             <tr className="border-b border-[#e1e7ee] text-[10px] font-semibold uppercase tracking-[0.04em] text-[#50637b]">
-              {COLUMNS.map((label) => (
-                <th key={label} className={`h-9 px-3 ${label === "Status" ? "text-center" : ""}`}>
-                  {label}
+              {COLUMNS.map((column) => (
+                <th key={column.key} className={`h-9 px-3 ${column.center ? "text-center" : ""}`}>
+                  <span className={column.srOnlyLabel ? "sr-only" : undefined}>{column.label}</span>
                 </th>
               ))}
             </tr>
@@ -230,39 +237,54 @@ export function TicketTableSection({
                 </td>
               </tr>
             ) : (
-              tickets.map((ticket) => (
-                <tr
-                  key={ticket.id}
-                  onClick={() => onSelectTicket(ticket)}
-                  className="h-[48px] cursor-pointer text-[11px] text-ink transition-colors hover:bg-surface-hover"
-                >
-                  <td className="whitespace-nowrap px-3 font-semibold text-brand">
-                    TK-{ticket.id}
-                  </td>
-                  <td className="px-3 font-semibold">
-                    <span className="line-clamp-2 leading-[16px]">{ticket.title}</span>
-                  </td>
-                  <td className="px-3 text-[#5f7188]">
-                    <span className="line-clamp-2 leading-[16px]">
-                      {getBodyPreview(ticket.body)}
-                    </span>
-                  </td>
-                  <td className="px-3">
-                    <span className="line-clamp-2 leading-[16px]">{ticket.requester}</span>
-                  </td>
-                  <td className="px-2 text-center">
-                    <StatusBadge status={ticket.status} />
-                  </td>
-                  <td className="px-3">
-                    <span className="line-clamp-2 leading-[16px]">
-                      {ticket.assignee || (!isAdmin ? currentUser.name : "Unassigned")}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-3 text-[#566a83]">
-                    {ticketDate(ticket.createdAt)}
-                  </td>
-                </tr>
-              ))
+              tickets.map((ticket) => {
+                const isUnread = ticket.hasUnreadRequesterReply;
+
+                return (
+                  <tr
+                    key={ticket.id}
+                    onClick={() => onSelectTicket(ticket)}
+                    className={`h-[48px] cursor-pointer text-[11px] text-ink transition-colors hover:bg-surface-hover ${
+                      isUnread ? "bg-brand-soft/50" : ""
+                    }`}
+                  >
+                    <td
+                      className={`whitespace-nowrap border-l-[3px] py-0 pl-[9px] pr-3 font-semibold text-brand ${
+                        isUnread ? "border-l-brand" : "border-l-transparent"
+                      }`}
+                    >
+                      TK-{ticket.id}
+                    </td>
+                    <td className="px-3 font-semibold">
+                      <span className="line-clamp-2 leading-[16px]">{ticket.title}</span>
+                    </td>
+                    <td className="px-3 text-[#5f7188]">
+                      <span className="line-clamp-2 leading-[16px]">
+                        {getBodyPreview(ticket.body)}
+                      </span>
+                    </td>
+                    <td className="px-3">
+                      <span className="line-clamp-2 leading-[16px]">{ticket.requester}</span>
+                    </td>
+                    <td className="px-2 text-center">
+                      <StatusBadge status={ticket.status} />
+                    </td>
+                    <td className="px-3">
+                      <span className="line-clamp-2 leading-[16px]">
+                        {ticket.assignee || (!isAdmin ? currentUser.name : "Unassigned")}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 text-[#566a83]">
+                      {ticketDate(ticket.createdAt)}
+                    </td>
+                    <td className="px-3 text-center">
+                      {isUnread && (
+                        <UnreadReplyBadge count={ticket.unreadRequesterReplyCount ?? 1} />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

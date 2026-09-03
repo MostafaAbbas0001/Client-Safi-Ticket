@@ -1,69 +1,18 @@
 import { apiClient } from "./api-client";
-import type { Ticket, TicketAttachment, TicketComment } from "@/models/ticket";
-
-export interface TicketQuery {
-  page?: number;
-  statusId?: number;
-  statusIds?: number[];
-  userId?: number;
-  search?: string;
-  startDate?: string;
-  endDate?: string;
-}
-
-export interface TicketSearchResponse {
-  items: Ticket[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-}
-
-export interface UpdateTicketRequest {
-  title?: string;
-  body?: string;
-  userId?: number | null;
-}
-
-export interface CreateTicketRequest {
-  title: string;
-  body: string;
-  requester: string;
-  requesterEmail: string;
-}
-
-export interface CreateTicketWithAttachmentsRequest extends CreateTicketRequest {
-  attachments?: File[];
-}
-
-export interface CreatedTicketWithAttachmentsResponse {
-  id: number;
-  title: string;
-  body: string;
-  requester: string;
-  requesterEmail?: string | null;
-  statusId?: number | null;
-  userId?: number | null;
-  createdAt?: string;
-  attachments?: TicketAttachment[];
-}
-
-export interface CreateTicketCommentRequest {
-  body: string;
-  authorName?: string | null;
-  authorEmail?: string | null;
-  authorType?: string;
-  isInternalNote?: boolean;
-  userId?: number | null;
-}
-
-export interface CreateTicketReplyRequest {
-  body: string;
-  authorName?: string | null;
-  authorEmail?: string | null;
-  userId?: number | null;
-}
-
-export type CloseTicketRequest = CreateTicketReplyRequest;
+import type {
+  CloseTicketRequest,
+  CreateTicketCommentRequest,
+  CreateTicketReplyRequest,
+  CreateTicketRequest,
+  CreatedTicketWithAttachmentsResponse,
+  CreateTicketWithAttachmentsRequest,
+  Ticket,
+  TicketAttachment,
+  TicketComment,
+  TicketQuery,
+  TicketSearchResponse,
+  UpdateTicketRequest,
+} from "@/models";
 
 export const ticketService = {
   async getTickets(query: TicketQuery) {
@@ -130,6 +79,10 @@ export const ticketService = {
 
   replyToRequester(ticketId: number, request: CreateTicketReplyRequest) {
     return apiClient.post<TicketComment>(`/api/ticket/${ticketId}/reply`, request);
+  },
+
+  markRequesterRepliesAsRead(ticketId: number) {
+    return apiClient.post<void>(`/api/ticket/${ticketId}/read`);
   },
 
   downloadAttachment(attachment: TicketAttachment) {

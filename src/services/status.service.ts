@@ -1,5 +1,5 @@
 import { apiClient } from "./api-client";
-import type { LookupItem } from "@/models/ticket";
+import type { LookupItem } from "@/models";
 
 export const statusService = {
   async getStatuses() {

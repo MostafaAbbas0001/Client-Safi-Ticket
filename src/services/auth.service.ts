@@ -1,33 +1,7 @@
 import { apiClient } from "./api-client";
-import type { Role } from "@/models/ticket";
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface AuthSession {
-  token: string;
-  userId: number;
-  name: string;
-  email: string;
-  role: Role;
-}
-
-interface TokenResponse {
-  token: string;
-}
+import type { AuthSession, JwtPayload, LoginRequest, TokenResponse } from "@/models";
 
 const AUTH_SESSION_KEY = "safi.auth.session";
-
-interface JwtPayload {
-  [claim: string]: unknown;
-  nameid?: string;
-  unique_name?: string;
-  email?: string;
-  role?: string;
-  exp?: number;
-}
 
 const claimTypes = {
   nameIdentifier: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",

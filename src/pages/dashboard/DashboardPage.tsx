@@ -2,20 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { NewTicketDialog } from "./components/NewTicketDialog";
 import { StaffDialog } from "./components/StaffDialog";
-import { StatusFilterSection, type StatusFilterItem } from "./components/StatusFilterSection";
-import { TicketDrawer } from "./components/TicketDrawer";
+import { StatusFilterSection } from "./components/StatusFilterSection";
 import { TicketTableSection } from "./components/TicketTableSection";
 import { useDashboardQueries } from "@/queries/dashboard.queries";
-import type { TicketDailyOverview } from "@/services/overview.service";
-import type { AuthSession } from "@/services/auth.service";
+import type { DashboardPageProps, StatusFilterItem, TicketDailyOverview } from "@/models";
 import { ALL_USERS, useDebouncedValue } from "./dashboard-utils";
 
 const EMPTY_DAILY_TICKETS: TicketDailyOverview[] = [];
-
-interface DashboardPageProps {
-  session: AuthSession;
-  onLogout: () => void;
-}
 
 function formatDateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -42,7 +35,7 @@ function getCurrentWeekRange() {
   };
 }
 
-export function DashboardPage({ session, onLogout }: DashboardPageProps) {
+export function DashboardPage({ session, onLogout, onSelectTicket }: DashboardPageProps) {
   const currentUser = {
     id: session.userId,
     name: session.name,
@@ -54,7 +47,6 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
   const [statusFilterIds, setStatusFilterIds] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [overviewDateRange, setOverviewDateRange] = useState(getCurrentWeekRange);
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
@@ -69,21 +61,11 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     users,
     statuses,
     roles,
-    comments,
-    attachments,
     isTicketsLoading,
     isTicketsRefreshing,
     isOverviewLoading,
-    isCommentsLoading,
-    isAttachmentsLoading,
     addTicket,
     addStaffUser,
-    assignTicket,
-    cancelTicket,
-    closeTicket,
-    addComment,
-    replyToRequester,
-    downloadAttachment,
   } = useDashboardQueries({
     currentUser,
     page,
@@ -92,13 +74,11 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
     search: debouncedSearch.trim() || undefined,
     startDate: overviewDateRange.startDate,
     endDate: overviewDateRange.endDate,
-    selectedTicketId,
   });
   const dailyTickets = ticketOverview?.dailyTickets ?? EMPTY_DAILY_TICKETS;
   const pageSize = ticketSearch?.pageSize ?? 50;
   const totalCount = ticketSearch?.totalCount ?? tickets.length;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId) ?? null;
 
   const statusFilters: StatusFilterItem[] = useMemo(() => {
     if (ticketOverview) {
@@ -144,7 +124,7 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
           }`}
         >
           <main className="min-w-0 flex-1 px-4 py-4 lg:px-5">
-            <div className={selectedTicket ? "lg:hidden" : undefined}>
+            <div>
               <StatusFilterSection
                 statusFilters={statusFilters}
                 dailyTickets={dailyTickets}
@@ -179,26 +159,9 @@ export function DashboardPage({ session, onLogout }: DashboardPageProps) {
                 pageSize={pageSize}
                 totalCount={totalCount}
                 onPageChange={setPage}
-                onSelectTicket={(ticket) => setSelectedTicketId(ticket.id)}
+                onSelectTicket={(ticket) => onSelectTicket(ticket.id)}
               />
             </div>
-
-            <TicketDrawer
-              ticket={selectedTicket}
-              user={currentUser}
-              users={users}
-              comments={comments}
-              attachments={attachments}
-              isCommentsLoading={isCommentsLoading}
-              isAttachmentsLoading={isAttachmentsLoading}
-              onClose={() => setSelectedTicketId(null)}
-              onAssign={assignTicket}
-              onCancel={cancelTicket}
-              onCloseTicket={closeTicket}
-              onAddComment={addComment}
-              onReply={replyToRequester}
-              onDownloadAttachment={downloadAttachment}
-            />
           </main>
         </div>
 

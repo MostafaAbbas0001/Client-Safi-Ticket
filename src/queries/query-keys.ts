@@ -1,5 +1,4 @@
-import type { TicketOverviewQuery } from "@/services/overview.service";
-import type { TicketQuery } from "@/services/ticket.service";
+import type { TicketOverviewQuery, TicketQuery } from "@/models";
 
 export const queryKeys = {
   tickets: {
